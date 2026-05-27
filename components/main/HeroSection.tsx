@@ -15,8 +15,9 @@ export const HeroSection: React.FC<heroSectionProps> = ({openModal}) => {
         className="container max-w-5xl relative z-10 text-center space-y-8"
       >
 
+
         <div className="flex flex-col items-center space-y-4 max-w-3xl mx-auto">      
-            <h1 className="text-3xl sm:text-7xl font-bbh uppercase tracking-widest text-foreground leading-[1.1] font-black">
+            <h1 className="text-3xl sm:text-7xl font-bbh uppercase tracking-widest text-black leading-[1.1]">
               Kaio.ink
             </h1>
         </div>

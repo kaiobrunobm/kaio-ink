@@ -225,7 +225,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
             className="bg-card border border-border max-w-2xl w-full my-8 relative flex flex-col shadow-2xl"
           >
             {/* Header */}
-            <div className="border-b border-border/40 p-6 flex justify-between items-center bg-background">
+            <div className="border-b border-border/40 p-6 flex justify-between items-center bg-white">
               <div>
                 <h2 className="text-xl font-bbh uppercase tracking-[0.15em]">Agendar sessao</h2>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1 font-mono">Passo {step} de 4</p>
@@ -236,7 +236,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
             </div>
 
             {/* Progress Bar */}
-            <div className="h-0.5 bg-border/20 w-full">
+            <div className="h-0.5 bg-black/20 w-full">
               <div 
                 className="h-full bg-black transition-all duration-500 ease-in-out" 
                 style={{ width: `${(step / 4) * 100}%` }}
@@ -244,7 +244,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
             </div>
 
             {/* Body */}
-            <div className="p-6 md:p-8 grow max-h-[70vh] overflow-y-auto">
+            <div className="p-6 md:p-8 grow max-h-[70vh] overflow-y-auto bg-white">
               
               {/* STEP 1: Contract */}
               {step === 1 && (
@@ -254,15 +254,15 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
                     <h3 className="text-xs font-bbh uppercase tracking-widest">Contrato de agendamento</h3>
                   </div>
 
-                  <div className="bg-muted/30 border border-border p-5 h-64 overflow-y-auto text-xs space-y-4 text-muted-foreground leading-relaxed font-sans">
-                    <p className="font-bold text-foreground">Termos e Condições:</p>
-                    <p>1. O valor mínimo é de <strong className="text-foreground">R$ 85,00</strong>. Orçamento final via WhatsApp.</p>
+                  <div className="bg-[#fbfcfb] border border-black/10 p-5 h-64 overflow-y-auto text-xs space-y-4 text-muted-foreground leading-relaxed font-sans">
+                    <p className="font-mono font-bold text-black">Termos e Condições:</p>
+                    <p>1. O valor mínimo é de <strong className="text-black">R$ 85,00</strong>. Orçamento final via WhatsApp.</p>
                     <p>2. O sinal é obrigatório para reserva de data e início do projeto.</p>
                     <p>3. Tolerância de atraso: 30 min. Cancelamentos com 48h de antecedência.</p>
                     <p>4. Menores de 18 anos: autorização obrigatória e documentos do responsável.</p>
                   </div>
 
-                  <div className="space-y-4 pt-4 border-t border-border/40">
+                  <div className="space-y-4 pt-4 border-t border-black/10">
                     <div className="flex items-start space-x-3">
                       <Checkbox 
                         id="termoSinal" 

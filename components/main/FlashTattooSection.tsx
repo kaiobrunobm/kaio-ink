@@ -54,7 +54,7 @@ const itemVariants = {
 };
 
 const FlashDetailsContent = ({ item }: { item: flash }) => (
-  <div className="space-y-4">
+  <div className="space-y-4 text-black">
     <div className="flex justify-between items-start border-b border-muted pb-3">
       <div>
         <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">Valor estimado</h4>
@@ -163,15 +163,15 @@ export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal
       >
         
         <div className="text-center space-y-3">
-          <span className="text-xs uppercase text-muted-foreground font-mono font-bold">Galeria ativa</span>
+          <span className="text-xs uppercase text-muted-foreground font-mono">Galeria ativa</span>
           <h2 className="text-xl sm:text-3xl font-display uppercase tracking-[0.15em] font-bbh">Portfolio & Flashes</h2>
           <div className="w-12 h-px bg-accent mx-auto mt-2"></div>
         </div>
 
 
         <Tabs defaultValue="available" className="w-full flex flex-col items-center justify-around">
-          <TabsList className="mb-8" variant="line">
-            <TabsTrigger value="available" className="uppercase tracking-widest text-[10px] md:text-xs px-1 md:px-6 font-mono">Desenhos Disponíveis</TabsTrigger>
+          <TabsList className="mb-8">
+            <TabsTrigger value="available" className="uppercase tracking-widest text-[10px] md:text-xs px-1 md:px-6 font-mono text-">Desenhos Disponíveis</TabsTrigger>
             <TabsTrigger value="done" className="uppercase tracking-widest text-[10px] md:text-xs px-1 md:px-6 font-mono">Tatuagens Feitas</TabsTrigger>
           </TabsList>
           

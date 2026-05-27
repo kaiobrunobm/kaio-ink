@@ -7,7 +7,7 @@ interface headerProps {
 
 export const Header: React.FC<headerProps> = ({openModal}) => {
   return (
-    <header className="py-4 sm:py-5 px-2 sm:px-5 sticky top-0 bg-background/70 backdrop-blur-lg z-50 transition-all duration-150 border-b border-border/40">
+    <header className="py-4 sm:py-5 px-2 sm:px-5 sticky top-0 backdrop-blur-lg z-50 transition-all duration-150 border-b border-border/40">
       <div className="flex justify-between items-center max-w-7xl mx-auto">
         <div className="flex items-center gap-2 sm:gap-3">
 
@@ -27,10 +27,10 @@ export const Header: React.FC<headerProps> = ({openModal}) => {
           </div>
 
           <nav className="hidden font-mono md:flex gap-8 text-xs uppercase tracking-[0.2em] text-muted-foreground font-semibold">
-          <a href="#portfolio" className="hover:text-foreground transition-all hover:underline">
+          <a href="#portfolio" className="hover:text-black transition-all hover:underline">
             Disponíveis
           </a>
-          <a href="#como-funciona" className="hover:text-foreground transition-all hover:underline">
+          <a href="#como-funciona" className="hover:text-black transition-all hover:underline">
             Como Funciona
           </a>
           </nav>
