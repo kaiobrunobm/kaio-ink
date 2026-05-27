@@ -7,20 +7,20 @@ interface headerProps {
 
 export const Header: React.FC<headerProps> = ({openModal}) => {
   return (
-    <header className="py-5 px-2 sticky top-0 bg-[#fbfbf9]/95 backdrop-blur-md z-30 transition-all duration-150">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
+    <header className="py-4 sm:py-5 px-2 sm:px-5 sticky top-0 bg-background/70 backdrop-blur-lg z-50 transition-all duration-150 border-b border-border/40">
+      <div className="flex justify-between items-center max-w-7xl mx-auto">
+        <div className="flex items-center gap-2 sm:gap-3">
 
-          <div className="w-12 h-12 overflow-hidden bg-transparent p-1">
+          <div className="hidden sm:block w-10 h-10 sm:w-12 sm:h-12 overflow-hidden bg-transparent p-1">
             {/* TODO: Add Logo */}
-            <div className="sm:block w-full h-full bg-black rounded-full" />
+            <div className="w-full h-full bg-black rounded-full" />
           </div>
 
           <div className="flex flex-col">
-            <span className="font-bbh text-xs uppercase tracking-[0.25em] font-black leading-none">
+            <span className="font-bbh text-xs sm:text-sm uppercase tracking-[0.25em] font-black leading-none">
                 Kaio.ink
               </span>
-              <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground mt-1">
+              <span className="text-[10px] sm:text-xs font-mono uppercase tracking-widest text-muted-foreground mt-1">
                 Studio
               </span>
             </div>
@@ -35,7 +35,7 @@ export const Header: React.FC<headerProps> = ({openModal}) => {
           </a>
           </nav>
 
-          <button onClick={() => openModal(true)} className="font-mono font-bold text-white bg-black px-6 py-2 transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black">
+          <button onClick={() => openModal(true)} className="font-mono font-bold text-white bg-black px-4 sm:px-6 py-2 text-[10px] sm:text-xs transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black shrink-0">
             Agendar
           </button>
       </div>

@@ -45,7 +45,7 @@ interface FormData {
   idade: string;
   whatsapp: string;
   tipoTattoo: "Flash Disponível" | "Projeto Autoral Personalizado" | "";
-  flashSelecionado: string;
+  flashSelecionado: string[];
   ideia: string;
   sessao_data: Date | undefined;
   sessao_periodo: "Tarde" | "Noite" | "";
@@ -62,7 +62,7 @@ const initialFormData: FormData = {
   idade: "",
   whatsapp: "",
   tipoTattoo: "",
-  flashSelecionado: "",
+  flashSelecionado: [],
   ideia: "",
   sessao_data: undefined,
   sessao_periodo: "",
@@ -129,8 +129,8 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
         toast.error("Digite um WhatsApp válido.");
         return;
       }
-      if (formData.tipoTattoo === "Flash Disponível" && !formData.flashSelecionado) {
-        toast.error("Selecione um flash.");
+      if (formData.tipoTattoo === "Flash Disponível" && formData.flashSelecionado.length === 0) {
+        toast.error("Selecione pelo menos um flash.");
         return;
       }
       if (formData.tipoTattoo === "Projeto Autoral Personalizado" && !formData.ideia) {
@@ -167,8 +167,9 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
     
     let tattooDetail = "";
     if (formData.tipoTattoo === "Flash Disponível") {
-      const selectedFlash = portfolioItems.find(f => String(f.id) === formData.flashSelecionado);
-      tattooDetail = `Flash Selecionado: ${selectedFlash?.title || "Não especificado"}\n *Nota:* Desenhos flash não estão sujeitos a alterações e possuem valor fixo.`;
+      const selectedFlashes = portfolioItems.filter(f => formData.flashSelecionado.includes(String(f.id)));
+      const flashTitles = selectedFlashes.map(f => f.title).join(", ");
+      tattooDetail = `Flashes Selecionados: ${flashTitles || "Nenhum"}\n *Nota:* Desenhos flash não estão sujeitos a alterações e possuem valor fixo.`;
     } else {
       tattooDetail = `Projeto Autoral Personalizado: ${formData.ideia}`;
     }
@@ -351,30 +352,39 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
 
                     {formData.tipoTattoo === "Flash Disponível" && (
                       <div className="md:col-span-2 space-y-4 pt-4">
-                        <Label className="text-[10px] uppercase tracking-widest font-mono block mb-2">Escolha seu Flash</Label>
+                        <Label className="text-[10px] uppercase tracking-widest font-mono block mb-2">Escolha seu Flash (pode selecionar mais de um)</Label>
                         <div className="grid grid-cols-3 gap-3">
-                          {availableFlashes.map((flash) => (
-                            <div 
-                              key={flash.id}
-                              onClick={() => setFormData(p => ({ ...p, flashSelecionado: String(flash.id) }))}
-                              className={cn(
-                                "cursor-pointer border p-2 transition-all group relative",
-                                formData.flashSelecionado === String(flash.id) 
-                                  ? "border-primary bg-primary/5 ring-1 ring-primary" 
-                                  : "border-border hover:border-primary/50"
-                              )}
-                            >
-                              <div className="overflow-hidden bg-muted/20 mb-2">
-                                <img src={flash.img} alt={flash.title} className="w-full h-full object-fill transition-transform duration-500" />
-                              </div>
-                              <p className="text-[8px] uppercase tracking-wider text-center font-bold line-clamp-1">{flash.title}</p>
-                              {formData.flashSelecionado === String(flash.id) && (
-                                <div className="absolute top-1 right-1 bg-primary text-white p-0.5">
-                                  <CheckIcon size={8} weight="bold" />
+                          {availableFlashes.map((flash) => {
+                            const isSelected = formData.flashSelecionado.includes(String(flash.id));
+                            return (
+                              <div 
+                                key={flash.id}
+                                onClick={() => setFormData(p => {
+                                  const alreadySelected = p.flashSelecionado.includes(String(flash.id));
+                                  if (alreadySelected) {
+                                    return { ...p, flashSelecionado: p.flashSelecionado.filter(id => id !== String(flash.id)) };
+                                  }
+                                  return { ...p, flashSelecionado: [...p.flashSelecionado, String(flash.id)] };
+                                })}
+                                className={cn(
+                                  "cursor-pointer border p-2 transition-all group relative",
+                                  isSelected 
+                                    ? "border-primary bg-primary/5 ring-1 ring-primary" 
+                                    : "border-border hover:border-primary/50"
+                                )}
+                              >
+                                <div className="aspect-square overflow-hidden bg-muted/20 mb-2">
+                                  <img src={flash.img} alt={flash.title} className="w-full h-full object-cover transition-transform duration-500" />
                                 </div>
-                              )}
-                            </div>
-                          ))}
+                                <p className="text-[8px] uppercase tracking-wider text-center font-bold line-clamp-1">{flash.title}</p>
+                                {isSelected && (
+                                  <div className="absolute top-1 right-1 bg-primary text-white p-0.5">
+                                    <CheckIcon size={8} weight="bold" />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -540,7 +550,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
                     <p><strong className="text-foreground">Cliente:</strong> {formData.nome}</p>
                     <p><strong className="text-foreground">Tipo:</strong> {formData.tipoTattoo}</p>
                     {formData.tipoTattoo === "Flash Disponível" && (
-                      <p><strong className="text-foreground">Flash:</strong> {portfolioItems.find(f => String(f.id) === formData.flashSelecionado)?.title}</p>
+                      <p><strong className="text-foreground">Flashes:</strong> {portfolioItems.filter(f => formData.flashSelecionado.includes(String(f.id))).map(f => f.title).join(", ")}</p>
                     )}
                     <p><strong className="text-foreground">Data:</strong> {formData.sessao_data && format(formData.sessao_data, "dd/MM/yyyy")} às {formData.sessao_periodo}</p>
                     <p><strong className="text-foreground">Pagamento:</strong> {formData.formaPagamento} {formData.formaPagamento === "Cartão de Crédito" && `(${formData.bandeiraCartao} ${formData.parcelasCredito}x)`}</p>

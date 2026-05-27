@@ -131,15 +131,15 @@ export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal
         
         <div className="text-center space-y-3">
           <span className="text-xs uppercase text-muted-foreground font-mono font-bold">Galeria ativa</span>
-          <h2 className="text-2xl sm:text-3xl font-display uppercase tracking-[0.15em] font-bbh">Portfolio & Flashes</h2>
+          <h2 className="text-xl sm:text-3xl font-display uppercase tracking-[0.15em] font-bbh">Portfolio & Flashes</h2>
           <div className="w-12 h-px bg-accent mx-auto mt-2"></div>
         </div>
 
 
-        <Tabs defaultValue="available" className="w-full flex flex-col items-center">
+        <Tabs defaultValue="available" className="w-full flex flex-col items-center justify-around">
           <TabsList className="mb-8" variant="line">
-            <TabsTrigger value="available" className="uppercase tracking-widest text-xs px-6 font-mono">Desenhos Disponíveis</TabsTrigger>
-            <TabsTrigger value="done" className="uppercase tracking-widest text-xs px-6 font-mono">Tatuagens Feitas</TabsTrigger>
+            <TabsTrigger value="available" className="uppercase tracking-widest text-[10px] md:text-xs px-1 md:px-6 font-mono">Desenhos Disponíveis</TabsTrigger>
+            <TabsTrigger value="done" className="uppercase tracking-widest text-[10px] md:text-xs px-1 md:px-6 font-mono">Tatuagens Feitas</TabsTrigger>
           </TabsList>
           
           <TabsContent value="available" className="w-full">
