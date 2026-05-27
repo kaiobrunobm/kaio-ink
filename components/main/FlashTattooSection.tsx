@@ -170,7 +170,7 @@ export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal
 
 
         <Tabs defaultValue="available" className="w-full flex flex-col items-center justify-around">
-          <TabsList className="mb-8">
+          <TabsList className="mb-8" variant="line">
             <TabsTrigger value="available" className="uppercase tracking-widest text-[10px] md:text-xs px-1 md:px-6 font-mono text-">Desenhos Disponíveis</TabsTrigger>
             <TabsTrigger value="done" className="uppercase tracking-widest text-[10px] md:text-xs px-1 md:px-6 font-mono">Tatuagens Feitas</TabsTrigger>
           </TabsList>
