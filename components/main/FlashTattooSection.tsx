@@ -17,6 +17,8 @@ type flash = {
   img: string;
   size: string;
   available: boolean;
+  value?: number;
+  recommendedBodyPart?: string;
 }
 
 interface flashTattooSectionProps {
@@ -79,8 +81,31 @@ const FlashGrid = ({ items }: { items: flash[] }) => (
                 <QuestionIcon size={24} />
               </button>
             </HoverCardTrigger>
-            <HoverCardContent>
-              {/* Content could be added here later */}
+            <HoverCardContent className="w-64 bg-white/95 backdrop-blur-sm border-accent/20 p-5 shadow-2xl">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start border-b border-muted pb-3">
+                  <div>
+                    <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">Valor estimado</h4>
+                    <p className="text-lg font-bbh uppercase leading-none">R$ {item.value || "---"}</p>
+                  </div>
+               
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">Tamanho</h4>
+                    <p className="text-xs font-bold uppercase">{item.size}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">Local sugerido</h4>
+                    <p className="text-xs font-bold uppercase">{item.recommendedBodyPart || "Qualquer local"}</p>
+                  </div>
+                </div>
+
+                <p className="text-[9px] text-muted-foreground leading-relaxed italic border-t border-muted pt-3">
+                  * Orçamento final será confirmado via WhatsApp após análise da anatomia.
+                </p>
+              </div>
             </HoverCardContent>
           </HoverCard>
         </div>
@@ -90,6 +115,7 @@ const FlashGrid = ({ items }: { items: flash[] }) => (
 );
 
 export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal, flashList}) => {
+
   const availableArt = flashList.filter(item => item.available);
   const tattoosDone = flashList.filter(item => !item.available);
 
@@ -104,10 +130,11 @@ export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal
       >
         
         <div className="text-center space-y-3">
-          <span className="text-xs uppercase text-muted-foreground font-mono">Galeria ativa</span>
+          <span className="text-xs uppercase text-muted-foreground font-mono font-bold">Galeria ativa</span>
           <h2 className="text-2xl sm:text-3xl font-display uppercase tracking-[0.15em] font-bbh">Portfolio & Flashes</h2>
           <div className="w-12 h-px bg-accent mx-auto mt-2"></div>
         </div>
+
 
         <Tabs defaultValue="available" className="w-full flex flex-col items-center">
           <TabsList className="mb-8" variant="line">
