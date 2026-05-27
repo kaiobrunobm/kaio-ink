@@ -96,3 +96,11 @@ export const portfolioItems = [
     recommendedBodyPart: "Perna - Braço - Tronco"
   },
 ];
+
+export const bookedDates: Record<string, ("Tarde" | "Noite")[]> = {
+  "2026-05-28": ["Noite"],
+  "2026-05-30": ["Tarde", "Noite"],
+  "2026-06-03": ["Tarde"],
+  "2026-06-05": ["Tarde", "Noite"],
+};
+

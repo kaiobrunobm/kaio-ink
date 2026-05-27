@@ -11,7 +11,7 @@ import {
   CheckIcon
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { portfolioItems } from "@/lib/data";
+import { portfolioItems, bookedDates } from "@/lib/data";
 import { motion, AnimatePresence } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
@@ -373,7 +373,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
                                     : "border-border hover:border-primary/50"
                                 )}
                               >
-                                <div className="aspect-square overflow-hidden bg-muted/20 mb-2">
+                                <div className="overflow-hidden bg-muted/20 mb-2">
                                   <img src={flash.img} alt={flash.title} className="w-full h-full object-cover transition-transform duration-500" />
                                 </div>
                                 <p className="text-[8px] uppercase tracking-wider text-center font-bold line-clamp-1">{flash.title}</p>
@@ -433,8 +433,24 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
                             <Calendar
                               mode="single"
                               selected={formData.sessao_data}
-                              onSelect={(date) => setFormData(p => ({ ...p, sessao_data: date }))}
-                              disabled={(date) => date < new Date() || date.getDay() === 0}
+                              onSelect={(date) => {
+                                setFormData(p => ({ ...p, sessao_data: date, sessao_periodo: "" }));
+                              }}
+                              disabled={(date) => {
+                                const dateStr = format(date, "yyyy-MM-dd");
+                                const bookedSlots = bookedDates[dateStr] || [];
+                                const isFullyBooked = bookedSlots.length >= 2;
+                                const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+                                const isSunday = date.getDay() === 0;
+                                return isPast || isSunday || isFullyBooked;
+                              }}
+                              onDayClick={(date) => {
+                                const dateStr = format(date, "yyyy-MM-dd");
+                                const bookedSlots = bookedDates[dateStr] || [];
+                                if (bookedSlots.length >= 2) {
+                                  toast.error("Esta data já está totalmente reservada.");
+                                }
+                              }}
                               locale={ptBR}
                             />
                           </PopoverContent>
@@ -446,11 +462,33 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
                         <ToggleGroup 
                           type="single" 
                           value={formData.sessao_periodo}
-                          onValueChange={(v: "Tarde" | "Noite" | "") => setFormData(p => ({ ...p, sessao_periodo: v }))}
+                          onValueChange={(v: "Tarde" | "Noite" | "") => {
+                            if (formData.sessao_data) {
+                              const dateStr = format(formData.sessao_data, "yyyy-MM-dd");
+                              const bookedSlots = bookedDates[dateStr] || [];
+                              if (bookedSlots.includes(v as any)) {
+                                toast.error(`O período da ${v.toLowerCase()} já está reservado para esta data.`);
+                                return;
+                              }
+                            }
+                            setFormData(p => ({ ...p, sessao_periodo: v }));
+                          }}
                           className="justify-start gap-2"
                         >
-                          <ToggleGroupItem value="Tarde" className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white">Tarde</ToggleGroupItem>
-                          <ToggleGroupItem value="Noite" className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white">Noite</ToggleGroupItem>
+                          <ToggleGroupItem 
+                            value="Tarde" 
+                            disabled={formData.sessao_data ? (bookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Tarde") : false}
+                            className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white"
+                          >
+                            Tarde
+                          </ToggleGroupItem>
+                          <ToggleGroupItem 
+                            value="Noite" 
+                            disabled={formData.sessao_data ? (bookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Noite") : false}
+                            className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white"
+                          >
+                            Noite
+                          </ToggleGroupItem>
                         </ToggleGroup>
                       </div>
                     </div>
