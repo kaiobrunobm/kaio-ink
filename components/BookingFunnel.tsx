@@ -186,19 +186,19 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
     
     return `Olá! Gostaria de solicitar um agendamento.
 
-📌 *DADOS DO CLIENTE*
+ *DADOS DO CLIENTE*
 - Nome: ${formData.nome}
 - Idade: ${formData.idade} anos
 - WhatsApp: ${formData.whatsapp}${minorMsg}
 
-🎨 *DETALHES DA TATUAGEM*
+ *DETALHES DA TATUAGEM*
 - Tipo: ${formData.tipoTattoo}
 - ${tattooDetail}
 
-📅 *PREFERÊNCIA DE HORÁRIO*
+ *PREFERÊNCIA DE HORÁRIO*
 - Sessão sugerida: ${formattedDate} (${periodoText})${pagMsg}
 
-⚖️ *TERMOS*
+ *TERMOS*
 - [X] Li e concordo com o Contrato.`;
   };
 
