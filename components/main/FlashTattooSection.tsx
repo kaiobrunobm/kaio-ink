@@ -10,6 +10,14 @@ import {
 import { Badge } from "../ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { 
+  Drawer, 
+  DrawerContent, 
+  DrawerTrigger,
+  DrawerHeader,
+  DrawerTitle
+} from "@/components/ui/drawer";
+
 type flash = {
   id: number;
   title: string;
@@ -45,6 +53,32 @@ const itemVariants = {
   }
 };
 
+const FlashDetailsContent = ({ item }: { item: flash }) => (
+  <div className="space-y-4">
+    <div className="flex justify-between items-start border-b border-muted pb-3">
+      <div>
+        <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">Valor estimado</h4>
+        <p className="text-lg font-bbh uppercase leading-none">R$ {item.value || "---"}</p>
+      </div>
+    </div>
+    
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">Tamanho</h4>
+        <p className="text-xs font-bold uppercase">{item.size}</p>
+      </div>
+      <div>
+        <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">Local sugerido</h4>
+        <p className="text-xs font-bold uppercase">{item.recommendedBodyPart || "Qualquer local"}</p>
+      </div>
+    </div>
+
+    <p className="text-[9px] text-muted-foreground leading-relaxed italic border-t border-muted pt-3">
+      * Orçamento final será confirmado via WhatsApp após análise da anatomia.
+    </p>
+  </div>
+);
+
 const FlashGrid = ({ items }: { items: flash[] }) => (
   <motion.div 
     variants={containerVariants}
@@ -75,39 +109,38 @@ const FlashGrid = ({ items }: { items: flash[] }) => (
             <h3 className="text-xs font-sans uppercase tracking-wider font-bold">{item.title}</h3>
             <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">{item.style}</p>
           </div>
-          <HoverCard>
-            <HoverCardTrigger>
-              <button className="md:block hidden cursor-pointer hover:text-muted-foreground">
-                <QuestionIcon size={24} />
-              </button>
-            </HoverCardTrigger>
-            <HoverCardContent className="w-64 bg-white/95 backdrop-blur-sm border-accent/20 p-5 shadow-2xl">
-              <div className="space-y-4">
-                <div className="flex justify-between items-start border-b border-muted pb-3">
-                  <div>
-                    <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">Valor estimado</h4>
-                    <p className="text-lg font-bbh uppercase leading-none">R$ {item.value || "---"}</p>
-                  </div>
-               
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">Tamanho</h4>
-                    <p className="text-xs font-bold uppercase">{item.size}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">Local sugerido</h4>
-                    <p className="text-xs font-bold uppercase">{item.recommendedBodyPart || "Qualquer local"}</p>
-                  </div>
-                </div>
+          
+          {/* Desktop Interactivity */}
+          <div className="hidden md:block">
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <button className="cursor-pointer hover:text-muted-foreground outline-none">
+                  <QuestionIcon size={24} />
+                </button>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-64 bg-white/95 backdrop-blur-sm border-accent/20 p-5 shadow-2xl">
+                <FlashDetailsContent item={item} />
+              </HoverCardContent>
+            </HoverCard>
+          </div>
 
-                <p className="text-[9px] text-muted-foreground leading-relaxed italic border-t border-muted pt-3">
-                  * Orçamento final será confirmado via WhatsApp após análise da anatomia.
-                </p>
-              </div>
-            </HoverCardContent>
-          </HoverCard>
+          {/* Mobile Interactivity */}
+          <div className="md:hidden block">
+            <Drawer>
+              <DrawerTrigger asChild>
+                <button className="cursor-pointer text-muted-foreground outline-none">
+                  <QuestionIcon size={24} />
+                </button>
+              </DrawerTrigger>
+              <DrawerContent className="bg-white px-6 pb-12">
+                <DrawerHeader className="px-0 mb-4">
+                  <DrawerTitle className="text-left font-bbh uppercase tracking-widest text-sm">{item.title}</DrawerTitle>
+                </DrawerHeader>
+                <FlashDetailsContent item={item} />
+              </DrawerContent>
+            </Drawer>
+          </div>
+
         </div>
       </motion.div>
     ))}
