@@ -80,7 +80,7 @@ const DoneTattooCarousel = ({
         }}
       >
         {images.map((img, idx) => (
-          <div key={idx} className="w-full h-full flex-shrink-0">
+          <div key={idx} className="w-full h-full shrink-0">
             <motion.img
               src={img.url}
               alt={`${item.title} - ${img.label}`}
@@ -175,7 +175,7 @@ const FlashGrid = ({
     {items.map((item) => (
       <div 
         key={item.id} 
-        className="group relative aspect-[3/4] w-full overflow-hidden bg-gray-100 rounded-sm"
+        className="group relative aspect-3/4 w-full overflow-hidden bg-gray-100 rounded-sm"
       >
         {item.available ? (
           <div 
@@ -200,7 +200,7 @@ const FlashGrid = ({
         )}
         
         {/* Readability Gradient */}
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-white via-white/80 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-white via-white/80 to-transparent z-10 pointer-events-none" />
 
         {/* Content Overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-4 z-20 flex justify-between items-end">
@@ -289,11 +289,11 @@ export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 cursor-zoom-out"
+            className="fixed inset-0 z-100 flex items-center justify-center bg-black/95 cursor-zoom-out"
             onClick={() => setZoomedImage(null)}
           >
             <motion.button 
-              className="absolute top-6 right-6 text-white/60 hover:text-white transition-colors z-[110]"
+              className="absolute top-6 right-6 text-white/60 hover:text-white transition-colors z-110"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >

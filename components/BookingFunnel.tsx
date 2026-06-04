@@ -594,7 +594,7 @@ Protocolo: *${bookingCode}*
                     <h3 className="text-xl font-bbh uppercase tracking-widest">Quase la!</h3>
                     <p className="text-muted-foreground text-xs max-w-sm mx-auto mt-2">Revise seu agendamento abaixo e confirme para abrir o WhatsApp.</p>
                   </div>
-
+''
                   <div className="bg-muted/50 border border-border p-6 text-left space-y-3 font-mono text-[10px] uppercase">
                     <div className="border-b border-border pb-2 flex justify-between">
                       <span className="font-bold text-primary">Resumo</span>
@@ -609,7 +609,7 @@ Protocolo: *${bookingCode}*
                     <p><strong className="text-foreground">Pagamento:</strong> {formData.formaPagamento} {formData.formaPagamento === "Cartão de Crédito" && `(${formData.bandeiraCartao} ${formData.parcelasCredito}x)`}</p>
                   </div>
                 </div>
-              )}
+              )}''
 
             </div>
 

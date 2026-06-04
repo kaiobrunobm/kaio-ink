@@ -47,7 +47,7 @@ export default function RootLayout({
       )}
  
     >
-      <body className="overflow-x-hidden">
+      <body className="overflow-x-hidden scroll-smooth">
         <ThemeProvider>
           {children}
         </ThemeProvider>

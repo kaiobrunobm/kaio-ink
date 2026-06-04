@@ -11,7 +11,7 @@ export const Footer = () => {
             <div className="w-full h-full bg-black rounded-full" />
           </div>
           <div className="flex flex-col text-left">
-            <span className="font-display text-xs uppercase tracking-[0.25em] font-bbh leading-none">KAIO INK</span>
+            <span className="font-display text-xs uppercase track'ing-[0.25em] font-bbh leading-none">KAIO INK</span>
             <span className="text-[9px] uppercase tracking-widest text-[#fbfbf9]/50 mt-1">STUDIO</span>
           </div>
         </div>
