@@ -226,10 +226,10 @@ Protocolo: *${bookingCode}*
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="bg-card border border-border max-w-2xl w-full my-8 relative flex flex-col shadow-2xl"
+            className="bg-card border border-border max-w-2xl w-full my-4 md:my-8 relative flex flex-col shadow-2xl"
           >
             {/* Header */}
-            <div className="border-b border-border/40 p-6 flex justify-between items-center bg-white">
+            <div className="border-b border-border/40 p-4 md:p-6 flex justify-between items-center bg-white">
               <div>
                 <h2 className="text-xl font-bbh uppercase tracking-[0.15em]">Agendar sessao</h2>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1 font-mono">Passo {step} de 4</p>
@@ -248,7 +248,7 @@ Protocolo: *${bookingCode}*
             </div>
 
             {/* Body */}
-            <div className="p-6 md:p-8 grow max-h-[70vh] overflow-y-auto bg-white">
+            <div className="p-5 md:p-8 grow max-h-[55vh] md:max-h-[70vh] overflow-y-auto bg-white">
               
               {/* STEP 1: Contract */}
               {step === 1 && (
@@ -587,7 +587,7 @@ Protocolo: *${bookingCode}*
               {/* STEP 4: Confirmation */}
               {step === 4 && (
                 <div className="space-y-8 text-center py-6 animate-in zoom-in-95">
-                  <div className="w-16 h-16 border border-primary text-primary flex items-center justify-center mx-auto rounded-full">
+                <div className="w-16 h-16 border border-primary text-primary flex items-center justify-center mx-auto rounded-full">
                     <StarIcon className="w-8 h-8" weight="fill" />
                   </div>
                   <div>
@@ -614,7 +614,7 @@ Protocolo: *${bookingCode}*
             </div>
 
             {/* Footer */}
-            <div className="border-t border-border p-6 bg-background flex justify-between gap-4">
+            <div className="border-t border-border p-4 md:p-6 bg-background flex justify-between gap-4">
               {step > 1 ? (
                 <button onClick={prevStep} className="px-8 py-4 border border-border bg-white/40 backdrop-blur-sm text-[10px] uppercase tracking-[0.25em] font-bold hover:border-black transition-all duration-150 flex items-center justify-center gap-2">
                   <ArrowLeftIcon className="mr-2" /> Voltar

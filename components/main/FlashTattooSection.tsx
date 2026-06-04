@@ -1,6 +1,5 @@
 import { QuestionIcon } from "@phosphor-icons/react";
 import React from "react";
-import { motion } from "framer-motion";
 
 import {
   HoverCard,
@@ -34,25 +33,6 @@ interface flashTattooSectionProps {
   flashList: flash[]
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05
-    }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { duration: 0.4, ease: "easeOut" }
-  }
-};
-
 const FlashDetailsContent = ({ item }: { item: flash }) => (
   <div className="space-y-4 text-black">
     <div className="flex justify-between items-start border-b border-muted pb-3">
@@ -80,17 +60,10 @@ const FlashDetailsContent = ({ item }: { item: flash }) => (
 );
 
 const FlashGrid = ({ items }: { items: flash[] }) => (
-  <motion.div 
-    variants={containerVariants}
-    initial="hidden"
-    animate="visible"
-    className="grid grid-cols-1 md:grid-cols-3 gap-8"
-  >
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
     {items.map((item) => (
-      <motion.div 
+      <div 
         key={item.id} 
-        variants={itemVariants as import("framer-motion").Variants}
-   
         className="group bg-white p-4 transition-all duration-300 flex flex-col justify-between"
       >
         <div className="aspect-3/4 w-full overflow-hidden bg-[#fafafa] relative">
@@ -142,9 +115,9 @@ const FlashGrid = ({ items }: { items: flash[] }) => (
           </div>
 
         </div>
-      </motion.div>
+      </div>
     ))}
-  </motion.div>
+  </div>
 );
 
 export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal, flashList}) => {
@@ -154,13 +127,7 @@ export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal
 
   return (
     <section id="portfolio" className="flex flex-col items-center py-24 bg-white/30 px-5 overflow-hidden">
-      <motion.div 
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
-        transition={{ duration: 0.6 }}
-        className="container max-w-6xl space-y-12"
-      >
+      <div className="container max-w-6xl space-y-12">
         
         <div className="text-center space-y-3">
           <span className="text-xs uppercase text-muted-foreground font-mono">Galeria ativa</span>
@@ -183,7 +150,7 @@ export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal
             <FlashGrid items={tattoosDone} />
           </TabsContent>
         </Tabs>
-      </motion.div>
+      </div>
     </section>
   )
 }
