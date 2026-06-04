@@ -39,7 +39,7 @@ export default function RootLayout({
       )}
  
     >
-      <body>
+      <body className="overflow-x-hidden">
         <ThemeProvider>
           {children}
         </ThemeProvider>

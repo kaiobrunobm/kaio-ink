@@ -18,7 +18,7 @@ export default function Page() {
     : portfolioItems.filter(item => item.size.includes("Flash"));
 
   return (
-    <main className="min-h-screen bg-[#fbfbf9] text-[#111111] selection:bg-[#111111] selection:text-[#fbfbf9] font-sans relative overflow-x-hidden scroll-smooth">
+    <main className="min-h-screen bg-[#fbfbf9] text-[#111111] selection:bg-[#111111] selection:text-[#fbfbf9] font-sans relative scroll-smooth">
 
       <Header openModal={setIsBookingOpen} />
       <HeroSection openModal={setIsBookingOpen}/>
