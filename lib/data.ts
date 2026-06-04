@@ -11,7 +11,7 @@ export const portfolioItems = [
   },
   {
     id: 2,
-    title: "Greeninja Pokémon #0658 ",
+    title: "Greeninja Pokemon #0658 ",
     style: "Blackwork / Rastelado",
     img: "https://i.pinimg.com/736x/e2/23/89/e223891cfcc3bfdea7979445f1bcf7e6.jpg",
     size: "15cm",
@@ -76,7 +76,7 @@ export const portfolioItems = [
 
   {
     id: 8,
-    title: "Wobbuffet Pokémon #0202",
+    title: "Wobbuffet Pokemon #0202",
     style: "Blackwork / Rastelado",
     img:   "https://i.pinimg.com/736x/d7/a6/a4/d7a6a46f75734a50c6ddb060e4162411.jpg",
     size: "11cm",
@@ -87,7 +87,7 @@ export const portfolioItems = [
 
   {
     id: 9,
-    title: "Charizard Pokémon #0006",
+    title: "Charizard Pokemon #0006",
     style: "Blackwork / Rastelado",
     img:   "https://i.pinimg.com/736x/f3/ab/6c/f3ab6c556ede631271fff214052707cd.jpg",
     size: "15cm",
@@ -95,12 +95,55 @@ export const portfolioItems = [
     value: 200,
     recommendedBodyPart: "Perna - Braço - Tronco"
   },
+  
+  {
+    id: 10,
+    title: "Minato Namikaze, Naruto",
+    style: "Blackwork / Rastelado / Anime",
+    img:   "https://i.pinimg.com/736x/9d/da/33/9dda3306f27689752faf7294cdbb8c86.jpg",
+    size: "20cm",
+    available: true,
+    value: 400,
+    recommendedBodyPart: "Antebraço - Lateral do Bíceps - Lateral Panturrilha"
+  },
+
+    
+  {
+    id: 11,
+    title: "Peônia Flower ",
+    style: "Blackwork / Rastelado",
+    img:   "https://i.pinimg.com/736x/fb/0c/ef/fb0cefa5eb63c6f44bb672fbe2b773e1.jpg",
+    size: "18cm",
+    available: true,
+    value: 250,
+    recommendedBodyPart: "Antebraço - Lateral do Joelho"
+  },
+  {
+    id: 12,
+    title: "Gothic Arch Portraits",
+    style: "Blackwork / Rastelado",
+    img:   "https://i.pinimg.com/736x/8b/6a/6d/8b6a6dbfdd7014666f3befafb63bf890.jpg",
+    size: "20cm",
+    available: true,
+    value: 600,
+    recommendedBodyPart: "Panturrilha"
+  },
 ];
 
-export const bookedDates: Record<string, ("Tarde" | "Noite")[]> = {
-  "2026-05-28": ["Noite"],
-  "2026-05-30": ["Tarde", "Noite"],
-  "2026-06-03": ["Tarde"],
-  "2026-06-05": ["Tarde", "Noite"],
+export const bookedDates: Record<string, ("Manhã" | "Noite")[]> = {
+  "2026-06-08": ["Manhã", "Noite"],
+  "2026-06-09": ["Manhã", "Noite"],
+  "2026-06-10": ["Manhã", "Noite"],
+  "2026-06-11": ["Manhã", "Noite"],
+  "2026-06-12": ["Manhã", "Noite"],
+  "2026-06-13": ["Manhã", "Noite"],
+  "2026-06-14": ["Manhã", "Noite"],
+  "2026-06-15": ["Manhã", "Noite"],
+  "2026-06-16": ["Manhã", "Noite"],
+  "2026-06-17": ["Manhã", "Noite"],
+  "2026-06-18": ["Manhã", "Noite"],
+  "2026-06-19": ["Manhã", "Noite"],
+  "2026-06-20": ["Manhã", "Noite"],
+  "2026-06-21": ["Manhã", "Noite"],
 };
 

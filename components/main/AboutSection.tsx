@@ -63,7 +63,7 @@ export const AboutSection = () => {
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] font-mono  uppercase tracking-widest text-muted-foreground block">Horarios</span>
-                <h3 className="text-xs uppercase tracking-wider font-bold font-sans">14:00 - 21:30</h3>
+                <h3 className="text-xs uppercase tracking-wider font-bold font-sans">07:00 - 10:00 | 18:00 - 22:00</h3>
               </div>
             </motion.div>
 

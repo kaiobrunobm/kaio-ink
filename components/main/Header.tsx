@@ -35,7 +35,7 @@ export const Header: React.FC<headerProps> = ({openModal}) => {
           </a>
           </nav>
 
-          <button onClick={() => openModal(true)} className="font-mono font-bold text-white bg-black px-4 sm:px-6 py-2 text-[10px] sm:text-xs transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black shrink-0">
+          <button onClick={() => openModal(true)} className="h-8 font-mono font-bold text-white bg-black px-4 sm:px-6 py-2 text-[10px] sm:text-xs transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black shrink-0">
             Agendar
           </button>
       </div>
