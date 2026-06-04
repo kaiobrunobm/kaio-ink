@@ -87,7 +87,7 @@ const DoneTattooCarousel = ({
               className="w-full h-full object-cover cursor-pointer"
               onClick={() => onZoom({ 
                 id: `flash-${item.id}-${idx}`, 
-                url: img.url, 
+                url: img.url as string, 
                 title: item.title 
               })}
               layoutId={idx === currentIndex ? `flash-${item.id}-${currentIndex}` : undefined}
