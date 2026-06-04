@@ -371,19 +371,29 @@ Protocolo: *${bookingCode}*
                                   return { ...p, flashSelecionado: [...p.flashSelecionado, String(flash.id)] };
                                 })}
                                 className={cn(
-                                  "cursor-pointer border p-2 transition-all group relative",
+                                  "cursor-pointer aspect-[3/4] relative overflow-hidden transition-all group/flash",
                                   isSelected 
-                                    ? "border-primary bg-primary/5 ring-1 ring-primary" 
-                                    : "border-border hover:border-primary/50"
+                                    ? "ring-2 ring-primary border-primary bg-primary/10" 
+                                    : "border border-border hover:border-primary/50"
                                 )}
                               >
-                                <div className="overflow-hidden bg-muted/20 mb-2">
-                                  <img src={flash.img} alt={flash.title} className="w-full h-full object-cover transition-transform duration-500" />
-                                </div>
-                                <p className="text-[8px] uppercase tracking-wider text-center font-bold line-clamp-1">{flash.title}</p>
+                                <img 
+                                  src={flash.img} 
+                                  alt={flash.title} 
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover/flash:scale-105" 
+                                />
+                                
+                                {/* Readability Gradient */}
+                                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-white via-white/40 to-transparent z-10 pointer-events-none" />
+
+                                {/* Title Overlay */}
+                                <p className="absolute bottom-2 left-2 right-2 z-20 text-[8px] uppercase tracking-wider text-center font-bold line-clamp-1 text-black">
+                                  {flash.title}
+                                </p>
+
                                 {isSelected && (
-                                  <div className="absolute top-1 right-1 bg-primary text-white p-0.5">
-                                    <CheckIcon size={8} weight="bold" />
+                                  <div className="absolute top-2 right-2 bg-primary text-white p-1 z-30 shadow-sm">
+                                    <CheckIcon size={10} weight="bold" />
                                   </div>
                                 )}
                               </div>
@@ -594,7 +604,6 @@ Protocolo: *${bookingCode}*
                     <h3 className="text-xl font-bbh uppercase tracking-widest">Quase la!</h3>
                     <p className="text-muted-foreground text-xs max-w-sm mx-auto mt-2">Revise seu agendamento abaixo e confirme para abrir o WhatsApp.</p>
                   </div>
-''
                   <div className="bg-muted/50 border border-border p-6 text-left space-y-3 font-mono text-[10px] uppercase">
                     <div className="border-b border-border pb-2 flex justify-between">
                       <span className="font-bold text-primary">Resumo</span>
@@ -609,7 +618,7 @@ Protocolo: *${bookingCode}*
                     <p><strong className="text-foreground">Pagamento:</strong> {formData.formaPagamento} {formData.formaPagamento === "Cartão de Crédito" && `(${formData.bandeiraCartao} ${formData.parcelasCredito}x)`}</p>
                   </div>
                 </div>
-              )}''
+              )}
 
             </div>
 
