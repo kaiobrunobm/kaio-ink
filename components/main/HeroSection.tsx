@@ -18,8 +18,8 @@ export const HeroSection: React.FC<heroSectionProps> = ({openModal}) => {
 
         <div className="relative flex flex-col items-center space-y-4 max-w-3xl mx-auto w-full py-4 sm:py-8">      
             {/* Background Seal Logo */}
-            <div className="absolute top-40 -right-90 rotate-24 -translate-y-1/2 translate-x-[-40%] sm:translate-x-[-30%] -z-10 opacity-20 mix-blend-multiply pointer-events-none select-none">
-              <img src="/logo.png" alt="Selo Kaio Ink" className="w-64 sm:w-[28rem] object-contain" />
+            <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 sm:top-40 sm:left-auto sm:-right-90 sm:translate-x-[-30%] rotate-12 sm:rotate-24 -z-10 opacity-20 mix-blend-multiply pointer-events-none select-none">
+              <img src="/logo.png" alt="Selo Kaio Ink" className="w-[150%] max-w-[20rem] sm:w-[28rem] sm:max-w-none object-contain" />
             </div>
 
             <h1 className="text-3xl sm:text-7xl font-bbh uppercase tracking-widest text-black leading-[1.1] relative z-10">

@@ -605,7 +605,7 @@ Protocolo: *${bookingCode}*
                     {formData.tipoTattoo === "Flash Disponível" && (
                       <p><strong className="text-foreground">Flashes:</strong> {portfolioItems.filter(f => formData.flashSelecionado.includes(String(f.id))).map(f => f.title).join(", ")}</p>
                     )}
-                    <p><strong className="text-foreground">Data:</strong> {formData.sessao_data && format(formData.sessao_data, "dd/MM/yyyy")} às {formData.sessao_periodo}</p>
+                    <p><strong className="text-foreground">Data:</strong> {formData.sessao_data && format(formData.sessao_data, "dd/MM/yyyy")} de {formData.sessao_periodo}</p>
                     <p><strong className="text-foreground">Pagamento:</strong> {formData.formaPagamento} {formData.formaPagamento === "Cartão de Crédito" && `(${formData.bandeiraCartao} ${formData.parcelasCredito}x)`}</p>
                   </div>
                 </div>
