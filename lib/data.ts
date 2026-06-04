@@ -110,7 +110,7 @@ export const portfolioItems = [
     
   {
     id: 11,
-    title: "Peônia Flower ",
+    title: "Peony Flower ",
     style: "Blackwork / Rastelado",
     img:   "https://i.pinimg.com/736x/fb/0c/ef/fb0cefa5eb63c6f44bb672fbe2b773e1.jpg",
     size: "18cm",

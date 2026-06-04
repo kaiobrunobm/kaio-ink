@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Geist, Geist_Mono, Roboto, Space_Grotesk, BBH_Bartle } from "next/font/google"
 
 import "./globals.css"
@@ -19,6 +20,13 @@ const bbhBartle = BBH_Bartle({
   variable: "--font-bbh-bartle",
 })
 
+export const metadata: Metadata = {
+  title: "Kaio.ink",
+  description: "Kaio.ink Studio",
+  icons: {
+    icon: "/favicon.svg",
+  },
+};
 
 export default function RootLayout({
   children,
