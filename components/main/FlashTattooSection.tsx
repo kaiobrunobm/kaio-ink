@@ -53,7 +53,7 @@ const DoneTattooCarousel = ({
     { url: item.imgFresh, label: "" },
     { url: item.imgHealed, label: "Cicatrizada" },
     { url: item.img, label: "Desenho" }
-  ].filter(img => img.url);
+  ].filter((img): img is { url: string; label: string } => !!img.url);
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
