@@ -4,13 +4,13 @@ export const portfolioItems = [
     title: "Garça Imperial & Smiley",
     style: "Blackwork / Oldschool",
     img: "https://i.pinimg.com/736x/7b/e0/fa/7be0fa22d6c5dab8b5fe5e23802eb613.jpg",
-    imgFresh: "https://i.pinimg.com/1200x/a2/dc/16/a2dc16af32ea59476f499f7444582c93.jpg",
+    imgFresh: "https://instagram.fpnz10-1.fna.fbcdn.net/v/t51.82787-15/719050571_17955085254149709_4360089015891294846_n.heic?stp=dst-jpg_e35_tt6&_nc_cat=106&ig_cache_key=MzkxNTAyODIwMzkzNjY0NDQxMg%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6IkZFRUQueHBpZHMuMTQ0MC5zZHIucmVndWxhcl9waG90by5DMyJ9&_nc_ohc=l_01N9cFW1QQ7kNvwE4cxg6&_nc_oc=Adpgak4qyLwzqYx2FQzp7lABPQqJ8pasYfosyDvr7zPQZBknZrclrQ_GwUJQ6DyuD20&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=instagram.fpnz10-1.fna&_nc_gid=Ezh1UrA0ytZ5hF3cJeTH4A&_nc_ss=7a22e&oh=00_Af82KzY6rPQmjaSttpbhmNoZ6xrau5BD6KQ1ZxebwVt3NA&oe=6A2CCD70",
     imgHealed: "",
-    size: "17cm",
+    size: "12cm",
     available: false,
     value: 220,
     recommendedBodyPart: "Panturrilha - Braço - Tronco",
-    doneDate: "Fev 2024"
+    doneDate: "Fev 2025"
   },
   {
     id: 2,
@@ -38,14 +38,13 @@ export const portfolioItems = [
     title: "Tiger Woman",
     style: "Oldschool",
     img:   "https://i.pinimg.com/736x/d7/d2/a0/d7d2a0963f0794a478cfc6c0f9499115.jpg",
-    imgFresh: "https://i.pinimg.com/1200x/7a/aa/68/7aaa687ff2ca6f7276c5afbcd5fbb35a.jpg",
-    imgHealed: "https://i.pinimg.com/1200x/6a/80/46/6a8046760f455a07df1bd5fe8c6ea0d4.jpg",
-    size: "17cm",
+    imgFresh: "https://instagram.fpnz10-1.fna.fbcdn.net/v/t51.82787-15/719009885_17955085806149709_8183770446198776427_n.heic?stp=dst-jpg_e35_tt6&_nc_cat=110&ig_cache_key=MzkxNTAzMDUyNzQwNDg2ODkyNw%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6IkZFRUQueHBpZHMuMTI5Mi5zZHIucmVndWxhcl9waG90by5DMyJ9&_nc_ohc=WELbJVOPKo8Q7kNvwE0RqhF&_nc_oc=AdqEdv8YMObIEhdKg42mBJojHitl_7BvV8Wx183w2OyvUmlED63CKXX-aaDnbOeJ_jo&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=instagram.fpnz10-1.fna&_nc_gid=LAwtSS5VsIqr1d2KtN5FdA&_nc_ss=7a22e&oh=00_Af-LA4jS1Ia7qDVLwdV9TqqPCw-xzIpu46lVBh1VBBqXBw&oe=6A2CA1F9",
+    imgHealed: "",
+    size: "13cm",
     available: false,
-    value: 550,
+    value: 250,
     recommendedBodyPart: "Perna - Braço - Tronco",
-    doneDate: "Nov 2023",
-    healedTime: "4 meses"
+    doneDate: "Fev 2025",
   }, 
 
   {
@@ -86,13 +85,13 @@ export const portfolioItems = [
     title: "Wobbuffet Pokemon #0202",
     style: "Blackwork / Rastelado",
     img:   "https://i.pinimg.com/736x/d7/a6/a4/d7a6a46f75734a50c6ddb060e4162411.jpg",
-    imgFresh: "https://i.pinimg.com/736x/69/34/55/69345598ab180819457e6348ebab8e5c.jpg",
+    imgFresh: "https://instagram.fpnz10-1.fna.fbcdn.net/v/t51.82787-15/719210369_17955086109149709_3053314258894006183_n.heic?stp=dst-jpg_e35_tt6&_nc_cat=109&ig_cache_key=MzkxNTAzMjEwMzY2NjE5NTUxMg%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6IkZFRUQueHBpZHMuMTQ0MC5zZHIucmVndWxhcl9waG90by5DMyJ9&_nc_ohc=SWB0v8hztP0Q7kNvwFB0tfU&_nc_oc=AdoDY3u6skjDcdkxeiMxh3e_zt2oLqxQ5e7IgSxI-vtmcUJP5TX91DKlxYlstd89Xqg&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=instagram.fpnz10-1.fna&_nc_gid=y69tECpvneilaaRN2irUIA&_nc_ss=7a22e&oh=00_Af_o-98h-8qdVPjpAHZ36a9l2Xd5hKhbD6lBG9oyDYUGoQ&oe=6A2CC4A0",
     imgHealed: "",
     size: "11cm",
     available: false,
     value: 150,
     recommendedBodyPart: "Perna - Braço - Tronco",
-    doneDate: "Mar 2024"
+    doneDate: "Fev 2025"
   },
 
   {

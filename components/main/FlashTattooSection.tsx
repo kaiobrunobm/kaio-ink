@@ -1,5 +1,5 @@
 import { QuestionIcon, CaretLeftIcon, CaretRightIcon, MagnifyingGlassPlusIcon, XIcon } from "@phosphor-icons/react";
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import {
@@ -81,37 +81,43 @@ const DoneTattooCarousel = React.memo(function DoneTattooCarousel({
   }, [item.img, item.imgFresh, item.imgHealed, item.doneDate, item.healedTime]);
 
   const [index, setIndex] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Navigation handlers
+  const scrollTo = useCallback((newIndex: number) => {
+    if (scrollRef.current) {
+      const width = scrollRef.current.offsetWidth;
+      scrollRef.current.scrollTo({ left: width * newIndex, behavior: "smooth" });
+      setIndex(newIndex);
+    }
+  }, []);
+
   const onNext = useCallback(() => {
-    if (index < slides.length - 1) setIndex(index + 1);
-  }, [index, slides.length]);
+    if (index < slides.length - 1) scrollTo(index + 1);
+  }, [index, slides.length, scrollTo]);
 
   const onPrev = useCallback(() => {
-    if (index > 0) setIndex(index - 1);
+    if (index > 0) scrollTo(index - 1);
+  }, [index, scrollTo]);
+
+  const handleScroll = useCallback(() => {
+    if (scrollRef.current) {
+      const width = scrollRef.current.offsetWidth;
+      const newIndex = Math.round(scrollRef.current.scrollLeft / width);
+      if (newIndex !== index) setIndex(newIndex);
+    }
   }, [index]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-neutral-100 select-none touch-none">
+    <div className="relative w-full h-full overflow-hidden bg-neutral-100 select-none">
       {/* Main Slide Container */}
-      <motion.div
-        className="flex h-full w-full cursor-grab active:cursor-grabbing"
-        animate={{ x: `-${index * 100}%` }}
-        transition={{ type: "spring", stiffness: 300, damping: 35 }}
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0} 
-        onDragEnd={(_, info) => {
-          const threshold = 50;
-          if (info.offset.x < -threshold && index < slides.length - 1) {
-            onNext();
-          } else if (info.offset.x > threshold && index > 0) {
-            onPrev();
-          }
-        }}
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex h-full w-full overflow-x-auto snap-x snap-mandatory scroll-smooth cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
       >
         {slides.map((slide, idx) => (
-          <div key={idx} className="relative w-full h-full shrink-0">
+          <div key={idx} className="relative w-full h-full shrink-0 snap-center snap-always">
             <img
               src={slide.url}
               alt={`${item.title} - ${slide.label}`}
@@ -134,51 +140,38 @@ const DoneTattooCarousel = React.memo(function DoneTattooCarousel({
             </div>
           </div>
         ))}
-      </motion.div>
+      </div>
 
       {/* Desktop Navigation Buttons */}
       <div className="hidden md:block">
-        <AnimatePresence>
-          {index > 0 && (
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={(e) => { e.stopPropagation(); onPrev(); }}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-30 bg-white/90 p-1.5 rounded-full shadow-md hover:bg-white transition-colors"
-            >
-              <CaretLeftIcon size={18} weight="bold" />
-            </motion.button>
-          )}
-        </AnimatePresence>
+        {index > 0 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onPrev(); }}
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-30 bg-white/90 p-1.5 rounded-full shadow-md hover:bg-white transition-all duration-200"
+          >
+            <CaretLeftIcon size={18} weight="bold" />
+          </button>
+        )}
 
-        <AnimatePresence>
-          {index < slides.length - 1 && (
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={(e) => { e.stopPropagation(); onNext(); }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-30 bg-white/90 p-1.5 rounded-full shadow-md hover:bg-white transition-colors"
-            >
-              <CaretRightIcon size={18} weight="bold" />
-            </motion.button>
-          )}
-        </AnimatePresence>
+        {index < slides.length - 1 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onNext(); }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-30 bg-white/90 p-1.5 rounded-full shadow-md hover:bg-white transition-all duration-200"
+          >
+            <CaretRightIcon size={18} weight="bold" />
+          </button>
+        )}
       </div>
 
       {/* Instagram-style Dots Indicator */}
       {slides.length > 1 && (
         <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-20 pointer-events-none">
           {slides.map((_, idx) => (
-            <motion.div
+            <div
               key={idx}
-              initial={false}
-              animate={{
-                width: idx === index ? 16 : 6,
-                backgroundColor: idx === index ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.2)"
-              }}
-              className="h-1.5 rounded-full transition-colors duration-300"
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                idx === index ? "w-4 bg-black/80" : "w-1.5 bg-black/20"
+              }`}
             />
           ))}
         </div>
