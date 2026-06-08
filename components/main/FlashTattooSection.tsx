@@ -118,10 +118,11 @@ const DoneTattooCarousel = React.memo(function DoneTattooCarousel({
       >
         {slides.map((slide, idx) => (
           <div key={idx} className="relative w-full h-full shrink-0 snap-center snap-always">
-            <img
+            <motion.img
+              layoutId={`flash-${item.id}-${idx}`}
               src={slide.url}
               alt={`${item.title} - ${slide.label}`}
-              className="w-full h-full object-cover pointer-events-none"
+              className="w-full h-full object-cover cursor-pointer"
               onClick={() => onZoom({ 
                 id: `flash-${item.id}-${idx}`, 
                 url: slide.url, 
