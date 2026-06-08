@@ -43,7 +43,6 @@ interface BookingFunnelProps {
 interface FormData {
   nome: string;
   idade: string;
-  whatsapp: string;
   tipoTattoo: "Flash Disponível" | "Projeto Autoral Personalizado" | "";
   flashSelecionado: string[];
   ideia: string;
@@ -60,7 +59,6 @@ interface FormData {
 const initialFormData: FormData = {
   nome: "",
   idade: "",
-  whatsapp: "",
   tipoTattoo: "",
   flashSelecionado: [],
   ideia: "",
@@ -75,14 +73,6 @@ const initialFormData: FormData = {
 };
 
 const BANDEIRAS = ["Visa", "Mastercard", "Elo", "American Express", "Hipercard", "Outra"];
-
-const maskPhone = (value: string) => {
-  const cleanValue = value.replace(/\D/g, "");
-  if (cleanValue.length === 0) return "";
-  if (cleanValue.length <= 2) return `(${cleanValue}`;
-  if (cleanValue.length <= 7) return `(${cleanValue.slice(0, 2)}) ${cleanValue.slice(2)}`;
-  return `(${cleanValue.slice(0, 2)}) ${cleanValue.slice(2, 7)}-${cleanValue.slice(7, 11)}`;
-};
 
 export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -105,11 +95,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    if (name === "whatsapp") {
-      setFormData(prev => ({ ...prev, whatsapp: maskPhone(value) }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const isMinor = () => {
@@ -130,12 +116,8 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
       }
     }
     if (step === 2) {
-      if (!formData.nome || !formData.idade || !formData.whatsapp || !formData.tipoTattoo) {
+      if (!formData.nome || !formData.idade || !formData.tipoTattoo) {
         toast.error("Preencha todos os campos obrigatórios.");
-        return;
-      }
-      if (formData.whatsapp.length < 14) {
-        toast.error("Digite um WhatsApp válido.");
         return;
       }
       if (formData.tipoTattoo === "Flash Disponível" && formData.flashSelecionado.length === 0) {
@@ -204,8 +186,7 @@ Protocolo: *${bookingCode}*
 
  *DADOS DO CLIENTE*
 - Nome: ${formData.nome}
-- Idade: ${formData.idade} anos
-- WhatsApp: ${formData.whatsapp}${minorMsg}
+- Idade: ${formData.idade} anos${minorMsg}
 
  *DETALHES DA TATUAGEM*
 - Tipo: ${formData.tipoTattoo}
