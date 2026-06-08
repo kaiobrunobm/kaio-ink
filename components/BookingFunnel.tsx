@@ -328,15 +328,6 @@ Protocolo: *${bookingCode}*
                         className="w-full bg-background border border-border p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
                       />
                     </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label className="text-[10px] uppercase tracking-widest font-mono">WhatsApp</Label>
-                      <input 
-                        name="whatsapp" value={formData.whatsapp} onChange={handleInputChange}
-                        placeholder="(00) 00000-0000"
-                        type="number"
-                        className="w-full bg-background border border-border p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
-                      />
-                    </div>
 
                     {isMinor() && (
                       <div className="md:col-span-2 bg-destructive/5 border border-destructive/20 p-4 space-y-3">
