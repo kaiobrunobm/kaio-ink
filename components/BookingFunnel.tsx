@@ -88,6 +88,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [bookingCode, setBookingCode] = useState<string>("");
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -117,6 +118,11 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
   };
 
   const nextStep = () => {
+    // Dismiss keyboard on mobile
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
     if (step === 1) {
       if (!formData.termoSinal || !formData.termoAnamnese) {
         toast.error("Você precisa aceitar os termos para continuar.");
@@ -162,7 +168,13 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
     setStep(prev => (prev + 1) as any);
   };
 
-  const prevStep = () => setStep(prev => (prev - 1) as any);
+  const prevStep = () => {
+    // Dismiss keyboard on mobile
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    setStep(prev => (prev - 1) as any);
+  };
 
   const formatWhatsAppMessage = () => {
     const formattedDate = formData.sessao_data ? format(formData.sessao_data, "dd/MM/yyyy") : "";
@@ -321,6 +333,7 @@ Protocolo: *${bookingCode}*
                       <input 
                         name="whatsapp" value={formData.whatsapp} onChange={handleInputChange}
                         placeholder="(00) 00000-0000"
+                        type="number"
                         className="w-full bg-background border border-border p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
                       />
                     </div>
@@ -430,7 +443,7 @@ Protocolo: *${bookingCode}*
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2 flex flex-col">
                         <Label className="text-[10px] uppercase tracking-widest font-mono mb-1">Selecione a Data</Label>
-                        <Popover>
+                        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                           <PopoverTrigger asChild>
                             <Button
                               variant={"outline"}
@@ -449,6 +462,11 @@ Protocolo: *${bookingCode}*
                               selected={formData.sessao_data}
                               onSelect={(date) => {
                                 setFormData(p => ({ ...p, sessao_data: date, sessao_periodo: "" }));
+                                setIsDatePickerOpen(false);
+                                // Dismiss keyboard if any input is still focused
+                                if (document.activeElement instanceof HTMLElement) {
+                                  document.activeElement.blur();
+                                }
                               }}
                               disabled={(date) => {
                                 const dateStr = format(date, "yyyy-MM-dd");

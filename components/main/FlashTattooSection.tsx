@@ -166,7 +166,7 @@ const DoneTattooCarousel = React.memo(function DoneTattooCarousel({
 
       {/* Instagram-style Dots Indicator */}
       {slides.length > 1 && (
-        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-20 pointer-events-none">
+        <div className="absolute bottom-18 left-0 right-0 flex justify-center gap-1.5 z-20 pointer-events-none">
           {slides.map((_, idx) => (
             <div
               key={idx}
@@ -244,7 +244,7 @@ const FlashGrid = React.memo(function FlashGrid({
           )}
           
           {/* Readability Gradient */}
-          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-white via-white/80 to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-white to-transparent z-10 pointer-events-none" />
 
           {/* Content Overlay */}
           <div className="absolute bottom-0 left-0 right-0 p-4 z-20 flex justify-between items-end">
