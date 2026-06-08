@@ -1,5 +1,5 @@
 import { QuestionIcon, CaretLeftIcon, CaretRightIcon, MagnifyingGlassPlusIcon, XIcon } from "@phosphor-icons/react";
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import {
@@ -44,114 +44,148 @@ interface flashTattooSectionProps {
   flashList: flash[]
 }
 
-const DoneTattooCarousel = ({ 
+const DoneTattooCarousel = React.memo(function DoneTattooCarousel({ 
   item, 
   onZoom 
 }: { 
   item: flash; 
   onZoom: (image: ZoomedImage) => void 
-}) => {
-  const images = [
-    { url: item.img, label: "Desenho" },
-    { url: item.imgFresh, label: item.doneDate ? `Tatuagem • ${item.doneDate}` : "Tatuagem" },
-    { url: item.imgHealed, label: item.healedTime ? `Cicatrizada • ${item.healedTime}` : "Cicatrizada" }
-  ].filter((img): img is { url: string; label: string } => !!img.url);
-
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  const next = () => {
-    if (currentIndex < images.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
+}) {
+  // 1. Prepare stable slide list
+  const slides = useMemo(() => {
+    const list = [];
+    
+    // Always show Design first
+    list.push({ 
+      url: item.img, 
+      label: "Arte Indisponível" 
+    });
+    
+    // Fresh tattoo
+    if (item.imgFresh) {
+      list.push({ 
+        url: item.imgFresh, 
+        label: item.doneDate ? `Feita em ${item.doneDate}` : "Tatuagem" 
+      });
     }
-  };
-
-  const prev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
+    
+    // Healed tattoo
+    if (item.imgHealed) {
+      list.push({ 
+        url: item.imgHealed, 
+        label: item.healedTime ? `Cicatrizada • ${item.healedTime}` : "Cicatrizada" 
+      });
     }
-  };
+    
+    return list;
+  }, [item.img, item.imgFresh, item.imgHealed, item.doneDate, item.healedTime]);
+
+  const [index, setIndex] = useState(0);
+
+  // Navigation handlers
+  const onNext = useCallback(() => {
+    if (index < slides.length - 1) setIndex(index + 1);
+  }, [index, slides.length]);
+
+  const onPrev = useCallback(() => {
+    if (index > 0) setIndex(index - 1);
+  }, [index]);
 
   return (
-    <div className="relative group/carousel h-full w-full overflow-hidden">
-      <motion.div 
-        className="flex h-full w-full"
-        animate={{ x: `-${currentIndex * 100}%` }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+    <div className="relative w-full h-full overflow-hidden bg-neutral-100 select-none touch-none">
+      {/* Main Slide Container */}
+      <motion.div
+        className="flex h-full w-full cursor-grab active:cursor-grabbing"
+        animate={{ x: `-${index * 100}%` }}
+        transition={{ type: "spring", stiffness: 300, damping: 35 }}
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.8}
-        onDragEnd={(_, { offset, velocity }) => {
-          const swipe = offset.x;
-          const vel = velocity.x;
-          if (swipe < -50 || vel < -500) {
-            next();
-          } else if (swipe > 50 || vel > 500) {
-            prev();
+        dragElastic={0} 
+        onDragEnd={(_, info) => {
+          const threshold = 50;
+          if (info.offset.x < -threshold && index < slides.length - 1) {
+            onNext();
+          } else if (info.offset.x > threshold && index > 0) {
+            onPrev();
           }
         }}
       >
-        {images.map((img, idx) => (
-          <div key={idx} className="w-full h-full shrink-0">
-            <motion.img
-              src={img.url}
-              alt={`${item.title} - ${img.label}`}
-              className="w-full h-full object-cover cursor-pointer"
+        {slides.map((slide, idx) => (
+          <div key={idx} className="relative w-full h-full shrink-0">
+            <img
+              src={slide.url}
+              alt={`${item.title} - ${slide.label}`}
+              className="w-full h-full object-cover pointer-events-none"
               onClick={() => onZoom({ 
                 id: `flash-${item.id}-${idx}`, 
-                url: img.url as string, 
+                url: slide.url, 
                 title: item.title 
               })}
-              layoutId={idx === currentIndex ? `flash-${item.id}-${currentIndex}` : undefined}
             />
+            
+            {/* Meta Chip (Label) */}
+            <div className="absolute top-3 left-3 z-20 pointer-events-none">
+              <Badge 
+                variant="secondary" 
+                className="bg-black/80 text-white border-none backdrop-blur-sm py-1 px-3 text-[10px] font-mono whitespace-nowrap"
+              >
+                {slide.label}
+              </Badge>
+            </div>
           </div>
         ))}
       </motion.div>
 
-      {/* Label Badge */}
-      {images[currentIndex].label && (
-        <div className="absolute top-3 left-3 font-mono z-20">
-          <Badge variant="secondary" className="bg-black text-white hover:bg-black whitespace-nowrap">
-            {images[currentIndex].label}
-          </Badge>
-        </div>
-      )}
-
-      {/* Navigation arrows */}
-      {images.length > 1 && (
-        <>
-          {currentIndex > 0 && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); prev(); }}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 p-1 rounded-full opacity-0 group-hover/carousel:opacity-100 transition-opacity z-20"
+      {/* Desktop Navigation Buttons */}
+      <div className="hidden md:block">
+        <AnimatePresence>
+          {index > 0 && (
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={(e) => { e.stopPropagation(); onPrev(); }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-30 bg-white/90 p-1.5 rounded-full shadow-md hover:bg-white transition-colors"
             >
-              <CaretLeftIcon size={16} />
-            </button>
+              <CaretLeftIcon size={18} weight="bold" />
+            </motion.button>
           )}
-          {currentIndex < images.length - 1 && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); next(); }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 p-1 rounded-full opacity-0 group-hover/carousel:opacity-100 transition-opacity z-20"
-            >
-              <CaretRightIcon size={16} />
-            </button>
-          )}
-        </>
-      )}
+        </AnimatePresence>
 
-      {/* Dots */}
-      {images.length > 1 && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-          {images.map((_, idx) => (
-            <div 
-              key={idx} 
-              className={`w-1.5 h-1.5 rounded-full transition-all ${idx === currentIndex ? 'bg-black w-3' : 'bg-black/20'}`}
+        <AnimatePresence>
+          {index < slides.length - 1 && (
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={(e) => { e.stopPropagation(); onNext(); }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-30 bg-white/90 p-1.5 rounded-full shadow-md hover:bg-white transition-colors"
+            >
+              <CaretRightIcon size={18} weight="bold" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Instagram-style Dots Indicator */}
+      {slides.length > 1 && (
+        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-20 pointer-events-none">
+          {slides.map((_, idx) => (
+            <motion.div
+              key={idx}
+              initial={false}
+              animate={{
+                width: idx === index ? 16 : 6,
+                backgroundColor: idx === index ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.2)"
+              }}
+              className="h-1.5 rounded-full transition-colors duration-300"
             />
           ))}
         </div>
       )}
     </div>
   );
-};
+});
 
 const FlashDetailsContent = ({ item }: { item: flash }) => (
   <div className="space-y-4 text-black">
@@ -179,93 +213,95 @@ const FlashDetailsContent = ({ item }: { item: flash }) => (
   </div>
 );
 
-const FlashGrid = ({ 
+const FlashGrid = React.memo(function FlashGrid({ 
   items, 
   onZoom 
 }: { 
   items: flash[]; 
   onZoom: (image: ZoomedImage) => void 
-}) => (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-    {items.map((item) => (
-      <div 
-        key={item.id} 
-        className="group relative aspect-3/4 w-full overflow-hidden bg-gray-100 rounded-sm"
-      >
-        {item.available ? (
-          <div 
-            className="w-full h-full relative cursor-pointer group/available"
-            onClick={() => onZoom({ id: `flash-${item.id}`, url: item.img, title: item.title })}
-          >
-            <motion.img 
-              layoutId={`flash-${item.id}`}
-              src={item.img} 
-              alt={item.title} 
-              className="w-full h-full object-cover transition-transform duration-500 group-hover/available:scale-105"
-            />
-            <div className="absolute top-3 left-3 font-mono z-20">
-              <Badge variant="secondary" className="bg-black text-white">Disponível</Badge>
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      {items.map((item) => (
+        <div 
+          key={item.id} 
+          className="group relative aspect-3/4 w-full overflow-hidden bg-gray-100 rounded-sm"
+        >
+          {item.available ? (
+            <div 
+              className="w-full h-full relative cursor-pointer group/available"
+              onClick={() => onZoom({ id: `flash-${item.id}`, url: item.img, title: item.title })}
+            >
+              <motion.img 
+                layoutId={`flash-${item.id}`}
+                src={item.img} 
+                alt={item.title} 
+                className="w-full h-full object-cover transition-transform duration-500 group-hover/available:scale-105"
+              />
+              <div className="absolute top-3 left-3 font-mono z-20">
+                <Badge variant="secondary" className="bg-black text-white">Disponível</Badge>
+              </div>
+              <button className="absolute bottom-3 right-3 bg-white/80 p-2 rounded-full opacity-0 group-hover/available:opacity-100 transition-opacity shadow-sm hover:bg-white z-20">
+                <MagnifyingGlassPlusIcon size={18} />
+              </button>
             </div>
-            <button className="absolute bottom-3 right-3 bg-white/80 p-2 rounded-full opacity-0 group-hover/available:opacity-100 transition-opacity shadow-sm hover:bg-white z-20">
-              <MagnifyingGlassPlusIcon size={18} />
-            </button>
-          </div>
-        ) : (
-          <DoneTattooCarousel item={item} onZoom={onZoom} />
-        )}
-        
-        {/* Readability Gradient */}
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-white via-white/80 to-transparent z-10 pointer-events-none" />
-
-        {/* Content Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 z-20 flex justify-between items-end">
-          <div className="space-y-0.5">
-            <h3 className="text-xs font-sans uppercase tracking-wider font-bold text-black">{item.title}</h3>
-            <p className="text-[10px] font-mono text-black/60 uppercase tracking-widest">{item.style}</p>
-          </div>
+          ) : (
+            <DoneTattooCarousel item={item} onZoom={onZoom} />
+          )}
           
-          <div className="flex items-center gap-2">
-            {/* Desktop Interactivity */}
-            <div className="hidden md:block">
-              <HoverCard>
-                <HoverCardTrigger asChild>
-                  <button className="cursor-pointer hover:text-black/60 outline-none text-black transition-colors">
-                    <QuestionIcon size={22} />
-                  </button>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-64 bg-white/95 backdrop-blur-sm border-accent/20 p-5 shadow-2xl">
-                  <FlashDetailsContent item={item} />
-                </HoverCardContent>
-              </HoverCard>
-            </div>
+          {/* Readability Gradient */}
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-white via-white/80 to-transparent z-10 pointer-events-none" />
 
-            {/* Mobile Interactivity */}
-            <div className="md:hidden block">
-              <Drawer>
-                <DrawerTrigger asChild>
-                  <button className="cursor-pointer text-black/60 outline-none">
-                    <QuestionIcon size={22} />
-                  </button>
-                </DrawerTrigger>
-                <DrawerContent className="bg-white px-6 pb-12">
-                  <DrawerHeader className="px-0 mb-4">
-                    <DrawerTitle className="text-left font-bbh uppercase tracking-widest text-sm">{item.title}</DrawerTitle>
-                  </DrawerHeader>
-                  <FlashDetailsContent item={item} />
-                </DrawerContent>
-              </Drawer>
+          {/* Content Overlay */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 z-20 flex justify-between items-end">
+            <div className="space-y-0.5">
+              <h3 className="text-xs font-sans uppercase tracking-wider font-bold text-black">{item.title}</h3>
+              <p className="text-[10px] font-mono text-black/60 uppercase tracking-widest">{item.style}</p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {/* Desktop Interactivity */}
+              <div className="hidden md:block">
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <button className="cursor-pointer hover:text-black/60 outline-none text-black transition-colors">
+                      <QuestionIcon size={22} />
+                    </button>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-64 bg-white/95 backdrop-blur-sm border-accent/20 p-5 shadow-2xl">
+                    <FlashDetailsContent item={item} />
+                  </HoverCardContent>
+                </HoverCard>
+              </div>
+
+              {/* Mobile Interactivity */}
+              <div className="md:hidden block">
+                <Drawer>
+                  <DrawerTrigger asChild>
+                    <button className="cursor-pointer text-black/60 outline-none">
+                      <QuestionIcon size={22} />
+                    </button>
+                  </DrawerTrigger>
+                  <DrawerContent className="bg-white px-6 pb-12">
+                    <DrawerHeader className="px-0 mb-4">
+                      <DrawerTitle className="text-left font-bbh uppercase tracking-widest text-sm">{item.title}</DrawerTitle>
+                    </DrawerHeader>
+                    <FlashDetailsContent item={item} />
+                  </DrawerContent>
+                </Drawer>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    ))}
-  </div>
-);
+      ))}
+    </div>
+  );
+});
 
 export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal, flashList}) => {
 
-  const availableArt = flashList.filter(item => item.available);
-  const tattoosDone = flashList.filter(item => !item.available);
+  const availableArt = useMemo(() => flashList.filter(item => item.available), [flashList]);
+  const tattoosDone = useMemo(() => flashList.filter(item => !item.available), [flashList]);
 
   const [zoomedImage, setZoomedImage] = useState<ZoomedImage | null>(null);
 

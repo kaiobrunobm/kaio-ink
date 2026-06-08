@@ -460,12 +460,15 @@ Protocolo: *${bookingCode}*
                               }}
                               onDayClick={(date) => {
                                 const isSunday = date.getDay() === 0;
-                                if (isSunday) return;
-
                                 const dateStr = format(date, "yyyy-MM-dd");
                                 const bookedSlots = bookedDates[dateStr] || [];
                                 const isFullyBooked = bookedSlots.length >= 2;
                                 const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+
+                                if (isSunday) {
+                                  toast.error("Não atendemos aos domingos.");
+                                  return;
+                                }
 
                                 if (isPast) {
                                   toast.error("Esta data já passou.");
