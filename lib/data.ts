@@ -9,7 +9,8 @@ export const portfolioItems = [
     size: "17cm",
     available: false,
     value: 220,
-    recommendedBodyPart: "Panturrilha - Braço - Tronco"
+    recommendedBodyPart: "Panturrilha - Braço - Tronco",
+    doneDate: "Fev 2024"
   },
   {
     id: 2,
@@ -42,7 +43,9 @@ export const portfolioItems = [
     size: "17cm",
     available: false,
     value: 550,
-    recommendedBodyPart: "Perna - Braço - Tronco"
+    recommendedBodyPart: "Perna - Braço - Tronco",
+    doneDate: "Nov 2023",
+    healedTime: "4 meses"
   }, 
 
   {
@@ -88,7 +91,8 @@ export const portfolioItems = [
     size: "11cm",
     available: false,
     value: 150,
-    recommendedBodyPart: "Perna - Braço - Tronco"
+    recommendedBodyPart: "Perna - Braço - Tronco",
+    doneDate: "Mar 2024"
   },
 
   {

@@ -29,6 +29,8 @@ type flash = {
   available: boolean;
   value?: number;
   recommendedBodyPart?: string;
+  doneDate?: string;
+  healedTime?: string;
 }
 
 interface ZoomedImage {
@@ -50,15 +52,24 @@ const DoneTattooCarousel = ({
   onZoom: (image: ZoomedImage) => void 
 }) => {
   const images = [
-    { url: item.imgFresh, label: "" },
-    { url: item.imgHealed, label: "Cicatrizada" },
-    { url: item.img, label: "Desenho" }
+    { url: item.img, label: "Desenho" },
+    { url: item.imgFresh, label: item.doneDate ? `Tatuagem • ${item.doneDate}` : "Tatuagem" },
+    { url: item.imgHealed, label: item.healedTime ? `Cicatrizada • ${item.healedTime}` : "Cicatrizada" }
   ].filter((img): img is { url: string; label: string } => !!img.url);
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const next = () => setCurrentIndex((prev) => (prev + 1) % images.length);
-  const prev = () => setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+  const next = () => {
+    if (currentIndex < images.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    }
+  };
+
+  const prev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+    }
+  };
 
   return (
     <div className="relative group/carousel h-full w-full overflow-hidden">
@@ -99,7 +110,7 @@ const DoneTattooCarousel = ({
       {/* Label Badge */}
       {images[currentIndex].label && (
         <div className="absolute top-3 left-3 font-mono z-20">
-          <Badge variant="secondary" className="bg-black text-white hover:bg-black">
+          <Badge variant="secondary" className="bg-black text-white hover:bg-black whitespace-nowrap">
             {images[currentIndex].label}
           </Badge>
         </div>
@@ -108,18 +119,22 @@ const DoneTattooCarousel = ({
       {/* Navigation arrows */}
       {images.length > 1 && (
         <>
-          <button 
-            onClick={(e) => { e.stopPropagation(); prev(); }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 p-1 rounded-full opacity-0 group-hover/carousel:opacity-100 transition-opacity z-20"
-          >
-            <CaretLeftIcon size={16} />
-          </button>
-          <button 
-            onClick={(e) => { e.stopPropagation(); next(); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 p-1 rounded-full opacity-0 group-hover/carousel:opacity-100 transition-opacity z-20"
-          >
-            <CaretRightIcon size={16} />
-          </button>
+          {currentIndex > 0 && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); prev(); }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 p-1 rounded-full opacity-0 group-hover/carousel:opacity-100 transition-opacity z-20"
+            >
+              <CaretLeftIcon size={16} />
+            </button>
+          )}
+          {currentIndex < images.length - 1 && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); next(); }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 p-1 rounded-full opacity-0 group-hover/carousel:opacity-100 transition-opacity z-20"
+            >
+              <CaretRightIcon size={16} />
+            </button>
+          )}
         </>
       )}
 
