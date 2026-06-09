@@ -775,7 +775,7 @@ Protocolo: *${bookingCode}*
                   disabled={isSubmitting}
                   className="text-sm font-mono font-bold text-white bg-black px-6 py-2 transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? "Enviando..." : "Enviar Agendamento"}
+                  {isSubmitting ? "Enviando..." : "Enviar"}
                 </button>
               ) : (
                 <button 
