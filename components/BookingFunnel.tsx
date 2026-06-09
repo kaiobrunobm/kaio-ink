@@ -255,8 +255,6 @@ Protocolo: *${bookingCode}*
                     <p className="font-mono font-bold text-black">Termos e Condições:</p>
                     <p>1. O valor mínimo é de <strong className="text-black">R$ 85,00</strong>. Orçamento final via WhatsApp.</p>
                     <p>2. O sinal é obrigatório para reserva de data e início do projeto.</p>
-                    <p>3. Tolerância de atraso: 30 min. Cancelamentos com 48h de antecedência.</p>
-                    <p>4. Menores de 18 anos: autorização obrigatória e documentos do responsável.</p>
                   </div>
 
                   <div className="space-y-4 pt-4 border-t border-black/10">
