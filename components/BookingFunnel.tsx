@@ -160,7 +160,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
 
   const formatWhatsAppMessage = () => {
     const formattedDate = formData.sessao_data ? format(formData.sessao_data, "dd/MM/yyyy") : "";
-    const periodoText = formData.sessao_periodo === "Manhã" ? "Manhã (07h-10h)" : "Noite (18h-22h)";
+    const periodoText = formData.sessao_periodo === "Manhã" ? "Manhã (09h-13h)" : "Noite (18h-22h)";
     
     let tattooDetail = "";
     if (formData.tipoTattoo === "Flash Disponível") {
@@ -251,7 +251,7 @@ Protocolo: *${bookingCode}*
                     <h3 className="text-xs font-bbh uppercase tracking-widest">Contrato de agendamento</h3>
                   </div>
 
-                  <div className="bg-[#fbfcfb] border border-black/10 p-5 h-64 overflow-y-auto text-xs space-y-4 text-muted-foreground leading-relaxed font-sans">
+                  <div className="bg-[#fbfcfb] border border-black/10 p-5 text-xs space-y-4 text-muted-foreground leading-relaxed font-sans">
                     <p className="font-mono font-bold text-black">Termos e Condições:</p>
                     <p>1. O valor mínimo é de <strong className="text-black">R$ 85,00</strong>. Orçamento final via WhatsApp.</p>
                     <p>2. O sinal é obrigatório para reserva de data e início do projeto.</p>
@@ -482,6 +482,11 @@ Protocolo: *${bookingCode}*
                           value={formData.sessao_periodo}
                           onValueChange={(v: "Manhã" | "Noite" | "") => {
                             if (formData.sessao_data) {
+                              const day = formData.sessao_data.getDay();
+                              if (v === "Manhã" && day >= 1 && day <= 5) {
+                                toast.error("Período da manhã disponível apenas aos finais de semana.");
+                                return;
+                              }
                               const dateStr = format(formData.sessao_data, "yyyy-MM-dd");
                               const bookedSlots = bookedDates[dateStr] || [];
                               if (bookedSlots.includes(v as any)) {
@@ -495,7 +500,10 @@ Protocolo: *${bookingCode}*
                         >
                           <ToggleGroupItem 
                             value="Manhã" 
-                            disabled={formData.sessao_data ? (bookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Manhã") : false}
+                            disabled={formData.sessao_data ? (
+                              (bookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Manhã") || 
+                              (formData.sessao_data.getDay() >= 1 && formData.sessao_data.getDay() <= 5)
+                            ) : false}
                             className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white"
                           >
                             Manhã

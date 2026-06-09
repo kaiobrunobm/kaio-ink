@@ -62,8 +62,17 @@ export const AboutSection = () => {
                 <ClockIcon size={24} color="black" />
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] font-mono  uppercase tracking-widest text-muted-foreground block">Horarios</span>
-                <h3 className="text-xs uppercase tracking-wider font-bold font-sans">07:00 - 10:00 | 18:00 - 22:00</h3>
+                <span className="text-[10px] font-mono  uppercase tracking-widest text-muted-foreground block">Horários</span>
+                <div className="space-y-1.5 mt-2">
+                  <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold font-sans gap-4 border-b border-accent/10 pb-1">
+                    <span className="text-muted-foreground font-medium">Seg-Sex</span>
+                    <span>18h - 22h</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold font-sans gap-4">
+                    <span className="text-muted-foreground font-medium">Sáb-Dom</span>
+                    <span>09h - 22h</span>
+                  </div>
+                </div>
               </div>
             </motion.div>
 
