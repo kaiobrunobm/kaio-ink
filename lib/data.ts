@@ -140,19 +140,6 @@ export const portfolioItems = [
 ];
 
 export const bookedDates: Record<string, ("Manhã" | "Noite")[]> = {
-  "2026-06-08": ["Manhã", "Noite"],
-  "2026-06-09": ["Manhã", "Noite"],
-  "2026-06-10": ["Manhã", "Noite"],
-  "2026-06-11": ["Manhã", "Noite"],
-  "2026-06-12": ["Manhã", "Noite"],
-  "2026-06-13": ["Manhã", "Noite"],
-  "2026-06-14": ["Manhã", "Noite"],
-  "2026-06-15": ["Manhã", "Noite"],
-  "2026-06-16": ["Manhã", "Noite"],
-  "2026-06-17": ["Manhã", "Noite"],
-  "2026-06-18": ["Manhã", "Noite"],
-  "2026-06-19": ["Manhã", "Noite"],
-  "2026-06-20": ["Manhã", "Noite"],
-  "2026-06-21": ["Manhã", "Noite"],
+
 };
 
