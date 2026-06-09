@@ -365,7 +365,7 @@ function BookingsTab() {
       await supabase.from('financial_records').insert({
         type: 'income',
         amount: selectedBooking.sinal_amount,
-        description: `Sinal retido (Cancelamento): ${selectedBooking.nome}`,
+        description: `Sinal retido (Cancelamento): ${selectedBooking.nome} - Ref: ${selectedBooking.id}`,
         category: 'booking_studio_cut'
       });
     }
@@ -407,7 +407,7 @@ function BookingsTab() {
     await supabase.from('financial_records').insert({
       type: 'income',
       amount: studioCut,
-      description: `Booking concluído: ${b.nome} (Total: R$ ${total})`,
+      description: `Booking concluído: ${b.nome} (Total: R$ ${total}) - Ref: ${b.id}`,
       category: 'booking_studio_cut'
     });
 
@@ -419,12 +419,23 @@ function BookingsTab() {
     }
   };
 
-  const deleteBooking = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir permanentemente este registro?")) return;
-    const { error } = await supabase.from('bookings').delete().eq('id', id);
-    if (error) toast.error("Erro ao excluir.");
+  const deleteBooking = async (b: any) => {
+    if (!confirm("Tem certeza que deseja excluir permanentemente este registro e seu histórico financeiro?")) return;
+    
+    // Delete associated financial records
+    const { error: finError } = await supabase
+      .from('financial_records')
+      .delete()
+      .like('description', `%${b.id}%`);
+
+    if (finError) {
+      console.error("Erro ao excluir registros financeiros:", finError);
+    }
+
+    const { error } = await supabase.from('bookings').delete().eq('id', b.id);
+    if (error) toast.error("Erro ao excluir agendamento.");
     else {
-      toast.success("Registro removido.");
+      toast.success("Registro e financeiro removidos.");
       fetchBookings();
     }
   };
@@ -561,7 +572,7 @@ function BookingsTab() {
                         </button>
                       </>
                     )}
-                    <button onClick={() => deleteBooking(b.id)} className="p-1.5 hover:bg-red-50 text-red-600 rounded-full" title="Excluir"><Trash size={18} /></button>
+                    <button onClick={() => deleteBooking(b)} className="p-1.5 hover:bg-red-50 text-red-600 rounded-full" title="Excluir"><Trash size={18} /></button>
                   </div>
                 </td>
               </tr>

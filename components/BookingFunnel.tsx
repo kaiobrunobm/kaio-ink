@@ -105,6 +105,22 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleWhatsAppChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, ""); // Remove non-digits
+    if (value.length > 11) value = value.slice(0, 11); // Limit to 11 digits
+
+    // Apply mask (XX) XXXXX-XXXX
+    let formatted = value;
+    if (value.length > 2) {
+      formatted = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+    }
+    if (value.length > 7) {
+      formatted = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+    }
+
+    setFormData(prev => ({ ...prev, whatsapp: formatted }));
+  };
+
   const isMinor = () => {
     const ageNum = parseInt(formData.idade, 10);
     return !isNaN(ageNum) && ageNum < 18;
@@ -257,7 +273,9 @@ Protocolo: *${bookingCode}*
       if (insertError) throw insertError;
 
       setStep(5);
-      toast.success("Agendamento enviado com sucesso!");
+      toast.success("Redirecionando para o WhatsApp...");
+      window.open(`https://wa.me/5575998002423?text=${encodeURIComponent(formatWhatsAppMessage())}`, "_blank");
+      
     } catch (error: any) {
       console.error("Error submitting booking:", error);
       toast.error("Ocorreu um erro ao enviar seu agendamento. Tente novamente.");
@@ -369,8 +387,11 @@ Protocolo: *${bookingCode}*
                     <div className="md:col-span-2 space-y-2">
                       <Label className="text-[10px] uppercase tracking-widest font-mono">WhatsApp (com DDD)</Label>
                       <input 
-                        name="whatsapp" value={formData.whatsapp} onChange={handleInputChange}
+                        name="whatsapp" value={formData.whatsapp} onChange={handleWhatsAppChange}
+                        type="tel"
+                        inputMode="numeric"
                         placeholder="(00) 00000-0000"
+                        maxLength={15}
                         className="w-full bg-background border border-border p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
                       />
                     </div>
