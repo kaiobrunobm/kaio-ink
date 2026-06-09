@@ -34,6 +34,8 @@ import { ptBR } from "date-fns/locale";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/lib/supabase";
+import { v4 as uuidv4 } from 'uuid';
 
 interface BookingFunnelProps {
   isOpen: boolean;
@@ -43,9 +45,11 @@ interface BookingFunnelProps {
 interface FormData {
   nome: string;
   idade: string;
+  whatsapp: string;
   tipoTattoo: "Flash Disponível" | "Projeto Autoral Personalizado" | "";
   flashSelecionado: string[];
   ideia: string;
+  referenciaImagem: File | null;
   sessao_data: Date | undefined;
   sessao_periodo: "Manhã" | "Noite" | "";
   formaPagamento: "Pix" | "Dinheiro" | "Cartão de Débito" | "Cartão de Crédito" | "";
@@ -59,9 +63,11 @@ interface FormData {
 const initialFormData: FormData = {
   nome: "",
   idade: "",
+  whatsapp: "",
   tipoTattoo: "",
   flashSelecionado: [],
   ideia: "",
+  referenciaImagem: null,
   sessao_data: undefined,
   sessao_periodo: "",
   formaPagamento: "",
@@ -75,10 +81,11 @@ const initialFormData: FormData = {
 const BANDEIRAS = ["Visa", "Mastercard", "Elo", "American Express", "Hipercard", "Outra"];
 
 export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [bookingCode, setBookingCode] = useState<string>("");
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -116,7 +123,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
       }
     }
     if (step === 2) {
-      if (!formData.nome || !formData.idade || !formData.tipoTattoo) {
+      if (!formData.nome || !formData.idade || !formData.whatsapp || !formData.tipoTattoo) {
         toast.error("Preencha todos os campos obrigatórios.");
         return;
       }
@@ -199,13 +206,64 @@ Protocolo: *${bookingCode}*
 - [X] Li e concordo com o Contrato.`;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    window.open(`https://wa.me/5575998002423?text=${encodeURIComponent(formatWhatsAppMessage())}`, "_blank");
-    toast.success("Redirecionando para o WhatsApp...");
-    setFormData(initialFormData);
-    setStep(1);
-    onClose();
+    setIsSubmitting(true);
+
+    try {
+      let imageUrl = null;
+
+      // Upload reference image if it exists
+      if (formData.referenciaImagem) {
+        const fileExt = formData.referenciaImagem.name.split('.').pop();
+        const fileName = `${uuidv4()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('references')
+          .upload(filePath, formData.referenciaImagem);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('references')
+          .getPublicUrl(filePath);
+        
+        imageUrl = publicUrl;
+      }
+
+      // Insert into bookings table
+      const { error: insertError } = await supabase
+        .from('bookings')
+        .insert([{
+          nome: formData.nome,
+          idade: formData.idade,
+          whatsapp: formData.whatsapp,
+          tipo_tattoo: formData.tipoTattoo,
+          flash_selecionado: formData.flashSelecionado,
+          ideia: formData.ideia,
+          referencia_imagem_url: imageUrl,
+          sessao_data: formData.sessao_data ? format(formData.sessao_data, "yyyy-MM-dd") : null,
+          sessao_periodo: formData.sessao_periodo,
+          forma_pagamento: formData.formaPagamento,
+          bandeira_cartao: formData.bandeiraCartao,
+          parcelas_credito: formData.parcelasCredito,
+          termo_sinal: formData.termoSinal,
+          termo_anamnese: formData.termoAnamnese,
+          termo_menor_idade: formData.termoMenorIdade,
+          status: 'pendente'
+        }]);
+
+      if (insertError) throw insertError;
+
+      setStep(5);
+      toast.success("Agendamento enviado com sucesso!");
+    } catch (error: any) {
+      console.error("Error submitting booking:", error);
+      toast.error("Ocorreu um erro ao enviar seu agendamento. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const availableFlashes = portfolioItems.filter(item => item.available);
@@ -225,7 +283,7 @@ Protocolo: *${bookingCode}*
             <div className="border-b border-border/40 p-4 md:p-6 flex justify-between items-center bg-white">
               <div>
                 <h2 className="text-xl font-bbh uppercase tracking-[0.15em]">Agendar sessao</h2>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1 font-mono">Passo {step} de 4</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1 font-mono">Passo {step} de 5</p>
               </div>
               <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-accent/10">
                 <XIcon className="w-4 h-4" />
@@ -236,7 +294,7 @@ Protocolo: *${bookingCode}*
             <div className="h-0.5 bg-black/20 w-full">
               <div 
                 className="h-full bg-black transition-all duration-500 ease-in-out" 
-                style={{ width: `${(step / 4) * 100}%` }}
+                style={{ width: `${(step / 5) * 100}%` }}
               ></div>
             </div>
 
@@ -304,6 +362,15 @@ Protocolo: *${bookingCode}*
                       <input 
                         type="number" name="idade" value={formData.idade} onChange={handleInputChange}
                         placeholder="00"
+                        className="w-full bg-background border border-border p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2 space-y-2">
+                      <Label className="text-[10px] uppercase tracking-widest font-mono">WhatsApp (com DDD)</Label>
+                      <input 
+                        name="whatsapp" value={formData.whatsapp} onChange={handleInputChange}
+                        placeholder="(00) 00000-0000"
                         className="w-full bg-background border border-border p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
                       />
                     </div>
@@ -387,14 +454,47 @@ Protocolo: *${bookingCode}*
                     )}
 
                     {formData.tipoTattoo === "Projeto Autoral Personalizado" && (
-                      <div className="md:col-span-2 space-y-2">
-                        <Label className="text-[10px] uppercase tracking-widest font-mono">Descrição do Projeto</Label>
-                        <textarea 
-                          name="ideia" value={formData.ideia} onChange={handleInputChange}
-                          placeholder="Local do corpo, tamanho em cm e detalhes da ideia..."
-                          rows={4}
-                          className="w-full bg-background border border-border p-3 text-sm focus:ring-1 focus:ring-primary outline-none resize-none"
-                        />
+                      <div className="md:col-span-2 space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] uppercase tracking-widest font-mono">Descrição do Projeto</Label>
+                          <textarea 
+                            name="ideia" value={formData.ideia} onChange={handleInputChange}
+                            placeholder="Local do corpo, tamanho em cm e detalhes da ideia..."
+                            rows={4}
+                            className="w-full bg-background border border-border p-3 text-sm focus:ring-1 focus:ring-primary outline-none resize-none"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-[10px] uppercase tracking-widest font-mono">Imagem de Referência (Opcional)</Label>
+                          <div className="flex items-center justify-center w-full">
+                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border hover:bg-accent/5 cursor-pointer transition-colors relative overflow-hidden">
+                              {formData.referenciaImagem ? (
+                                <div className="absolute inset-0 p-2">
+                                  <img 
+                                    src={URL.createObjectURL(formData.referenciaImagem)} 
+                                    alt="Preview" 
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                  <FileTextIcon size={24} className="text-muted-foreground mb-2" />
+                                  <p className="text-xs text-muted-foreground">Clique para fazer upload</p>
+                                </div>
+                              )}
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) setFormData(p => ({ ...p, referenciaImagem: file }));
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -619,11 +719,26 @@ Protocolo: *${bookingCode}*
                 </div>
               )}
 
+              {/* STEP 5: Success */}
+              {step === 5 && (
+                <div className="space-y-8 text-center py-12 animate-in zoom-in-95">
+                  <div className="w-20 h-20 bg-green-500 text-white flex items-center justify-center mx-auto rounded-full shadow-lg">
+                    <CheckIcon className="w-10 h-10" weight="bold" />
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="text-2xl font-bbh uppercase tracking-widest text-black">Agendamento enviado!</h3>
+                    <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
+                      Recebemos sua solicitação com sucesso. Nossa equipe entrará em contato com você pelo WhatsApp em breve para confirmar os detalhes.
+                    </p>
+                  </div>
+                </div>
+              )}
+
             </div>
 
             {/* Footer */}
             <div className="border-t border-border p-4 md:p-6 bg-background flex justify-between gap-4">
-              {step > 1 ? (
+              {step > 1 && step < 5 ? (
                 <button onClick={prevStep} className="px-8 py-4 border border-border bg-white/40 backdrop-blur-sm text-[10px] uppercase tracking-[0.25em] font-bold hover:border-black transition-all duration-150 flex items-center justify-center gap-2">
                   <ArrowLeftIcon className="mr-2" /> Voltar
                 </button>
@@ -633,9 +748,24 @@ Protocolo: *${bookingCode}*
                 <button onClick={nextStep} className="text-sm font-mono font-bold text-white bg-black px-6 py-2 transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black">
                   Próximo
                 </button>
+              ) : step === 4 ? (
+                <button 
+                  onClick={handleSubmit} 
+                  disabled={isSubmitting}
+                  className="text-sm font-mono font-bold text-white bg-black px-6 py-2 transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? "Enviando..." : "Enviar Agendamento"}
+                </button>
               ) : (
-                <button onClick={handleSubmit} className="text-sm font-mono font-bold text-white bg-black px-6 py-2 transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black">
-                  Confirmar via WhatsApp
+                <button 
+                  onClick={() => {
+                    setStep(1);
+                    setFormData(initialFormData);
+                    onClose();
+                  }} 
+                  className="text-sm font-mono font-bold text-white bg-black px-12 py-2 transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black w-full sm:w-auto"
+                >
+                  Fechar
                 </button>
               )}
             </div>
