@@ -402,6 +402,12 @@ function BookingsTab() {
     if (error) {
       toast.error("Erro ao confirmar agendamento.");
     } else {
+      // If it's a Flash booking, mark the flashes as unavailable
+      if (selectedBooking.tipo_tattoo === "Flash Disponível" && selectedBooking.flash_selecionado) {
+        for (const flashId of selectedBooking.flash_selecionado) {
+          await supabase.from('flashes').update({ available: false }).eq('id', flashId);
+        }
+      }
       toast.success("Agendamento confirmado!");
       setIsConfirmModalOpen(false);
       fetchBookings();

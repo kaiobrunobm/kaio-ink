@@ -296,22 +296,29 @@ export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal
   const [flashList, setFlashList] = useState<flash[]>([]);
   const [activePromo, setActivePromo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [bookedFlashes, setBookedFlashes] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch Flashes
+      // 1. Fetch Flashes
       const { data: flashes, error: fError } = await supabase
         .from('flashes')
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Fetch Active Promo
+      // 2. Fetch Active Promo
       const { data: promo } = await supabase
         .from('promotions')
         .select('*')
         .eq('active', true)
         .limit(1)
         .single();
+
+      // 3. Fetch Bookings to see what flashes are taken
+      const { data: activeBookings } = await supabase
+        .from('bookings')
+        .select('flash_selecionado')
+        .in('status', ['confirmado', 'concluido']);
 
       if (fError) {
         console.error("Erro ao carregar flashes:", fError);
@@ -334,6 +341,23 @@ export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal
       }
       
       if (promo) setActivePromo(promo);
+
+      if (activeBookings) {
+        const taken = new Set<string>();
+        activeBookings.forEach(b => {
+          if (b.flash_selecionado) {
+            try {
+              const flashesArray = typeof b.flash_selecionado === 'string' 
+                ? JSON.parse(b.flash_selecionado) 
+                : Array.isArray(b.flash_selecionado) ? b.flash_selecionado : [];
+              flashesArray.forEach((id: string) => taken.add(String(id)));
+            } catch (e) {
+              console.error("Error parsing flash_selecionado in section", e);
+            }
+          }
+        });
+        setBookedFlashes(Array.from(taken));
+      }
       
       setLoading(false);
     };
@@ -341,7 +365,11 @@ export const FlashTattooSection: React.FC<flashTattooSectionProps> = ({openModal
     fetchData();
   }, []);
 
-  const availableArt = useMemo(() => flashList.filter(item => item.available), [flashList]);
+  // Filter flashes: must be marked available in table AND not have a confirmed booking
+  const availableArt = useMemo(() => flashList.filter(item => 
+    item.available && !bookedFlashes.includes(String(item.id))
+  ), [flashList, bookedFlashes]);
+
   const tattoosDone = useMemo(() => flashList.filter(item => !item.available), [flashList]);
 
   const [zoomedImage, setZoomedImage] = useState<ZoomedImage | null>(null);

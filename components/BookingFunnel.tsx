@@ -1,30 +1,30 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { 
-  XIcon, 
-  ArrowRightIcon, 
-  ArrowLeftIcon, 
-  CalendarIcon, 
-  UserIcon, 
-  FileTextIcon, 
+import {
+  XIcon,
+  ArrowRightIcon,
+  ArrowLeftIcon,
+  CalendarIcon,
+  UserIcon,
+  FileTextIcon,
   StarIcon,
   CheckIcon
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -104,11 +104,12 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
   }, [isOpen]);
 
   const fetchAvailability = async () => {
-    // Fetch all flashes to show names and filter availability
+    // 1. Fetch all flashes to show names and filter availability
     const { data: allFlashes } = await supabase.from('flashes').select('*');
     if (allFlashes) setFlashes(allFlashes);
 
-    const { data, error } = await supabase
+    // 2. Fetch all bookings that should block the calendar/art
+    const { data: activeBookings, error } = await supabase
       .from('bookings')
       .select('sessao_data, sessao_periodo, flash_selecionado')
       .in('status', ['confirmado', 'concluido']);
@@ -121,13 +122,25 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
     const datesMap: Record<string, ("Manhã" | "Noite")[]> = {};
     const flashesSet = new Set<string>();
 
-    data.forEach(b => {
+    activeBookings.forEach(b => {
+      // Normalize date string (e.g., "2026-06-10") to avoid timezone issues
       if (b.sessao_data && b.sessao_periodo) {
-        if (!datesMap[b.sessao_data]) datesMap[b.sessao_data] = [];
-        datesMap[b.sessao_data].push(b.sessao_periodo as any);
+        const rawDate = b.sessao_data.split('T')[0]; // Ensure it's just YYYY-MM-DD
+        if (!datesMap[rawDate]) datesMap[rawDate] = [];
+        datesMap[rawDate].push(b.sessao_periodo as any);
       }
+
+      // Robustly parse JSON array from Supabase
       if (b.flash_selecionado) {
-        b.flash_selecionado.forEach((id: string) => flashesSet.add(id));
+        try {
+          const flashesArray = typeof b.flash_selecionado === 'string'
+            ? JSON.parse(b.flash_selecionado)
+            : Array.isArray(b.flash_selecionado) ? b.flash_selecionado : [];
+
+          flashesArray.forEach((id: string) => flashesSet.add(String(id)));
+        } catch (e) {
+          console.error("Error parsing flash_selecionado", e);
+        }
       }
     });
 
@@ -219,7 +232,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
   const formatWhatsAppMessage = () => {
     const formattedDate = formData.sessao_data ? format(formData.sessao_data, "dd/MM/yyyy") : "";
     const periodoText = formData.sessao_periodo === "Manhã" ? "Manhã (09h-13h)" : "Noite (18h-22h)";
-    
+
     let tattooDetail = "";
     if (formData.tipoTattoo === "Flash Disponível") {
       const selectedFlashes = flashes.filter(f => formData.flashSelecionado.includes(String(f.id)));
@@ -238,7 +251,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
     if (isMinor()) {
       minorMsg = `\n *AUTORIZAÇÃO DE MENOR DE IDADE*\n- [X] Confirmo que apresentarei permissão legal.`;
     }
-    
+
     return `Olá! Gostaria de solicitar um agendamento.
 Protocolo: *${bookingCode}*
 
@@ -279,7 +292,7 @@ Protocolo: *${bookingCode}*
         const { data: { publicUrl } } = supabase.storage
           .from('references')
           .getPublicUrl(filePath);
-        
+
         imageUrl = publicUrl;
       }
 
@@ -310,7 +323,7 @@ Protocolo: *${bookingCode}*
       setStep(5);
       toast.success("Redirecionando para o WhatsApp...");
       window.open(`https://wa.me/5575998002423?text=${encodeURIComponent(formatWhatsAppMessage())}`, "_blank");
-      
+
     } catch (error: any) {
       console.error("Error submitting booking:", error);
       toast.error("Ocorreu um erro ao enviar seu agendamento. Tente novamente.");
@@ -332,7 +345,7 @@ Protocolo: *${bookingCode}*
     <AnimatePresence mode="wait">
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 overflow-y-auto">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -352,15 +365,15 @@ Protocolo: *${bookingCode}*
 
             {/* Progress Bar */}
             <div className="h-0.5 bg-black/20 w-full">
-              <div 
-                className="h-full bg-black transition-all duration-500 ease-in-out" 
+              <div
+                className="h-full bg-black transition-all duration-500 ease-in-out"
                 style={{ width: `${(step / 5) * 100}%` }}
               ></div>
             </div>
 
             {/* Body */}
             <div className="p-5 md:p-8 grow max-h-[55vh] md:max-h-[70vh] overflow-y-auto bg-white">
-              
+
               {/* STEP 1: Contract */}
               {step === 1 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
@@ -377,9 +390,9 @@ Protocolo: *${bookingCode}*
 
                   <div className="space-y-4 pt-4 border-t border-black/10">
                     <div className="flex items-start space-x-3">
-                      <Checkbox 
-                        id="termoSinal" 
-                        checked={formData.termoSinal} 
+                      <Checkbox
+                        id="termoSinal"
+                        checked={formData.termoSinal}
                         onCheckedChange={(checked) => setFormData(p => ({ ...p, termoSinal: !!checked }))}
                       />
                       <Label htmlFor="termoSinal" className="text-xs leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
@@ -387,9 +400,9 @@ Protocolo: *${bookingCode}*
                       </Label>
                     </div>
                     <div className="flex items-start space-x-3">
-                      <Checkbox 
-                        id="termoAnamnese" 
-                        checked={formData.termoAnamnese} 
+                      <Checkbox
+                        id="termoAnamnese"
+                        checked={formData.termoAnamnese}
                         onCheckedChange={(checked) => setFormData(p => ({ ...p, termoAnamnese: !!checked }))}
                       />
                       <Label htmlFor="termoAnamnese" className="text-xs leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
@@ -411,7 +424,7 @@ Protocolo: *${bookingCode}*
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label className="text-[10px] uppercase tracking-widest font-mono">Nome Completo</Label>
-                      <input 
+                      <input
                         name="nome" value={formData.nome} onChange={handleInputChange}
                         placeholder="Nome completo"
                         className="w-full bg-background border border-border p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
@@ -419,16 +432,16 @@ Protocolo: *${bookingCode}*
                     </div>
                     <div className="space-y-2">
                       <Label className="text-[10px] uppercase tracking-widest font-mono">Idade</Label>
-                      <input 
-                        type="number" name="idade" value={formData.idade} onChange={handleInputChange}
+                      <input
+                        type="number" name="idade" min={0} max={100} value={formData.idade} onChange={handleInputChange}
                         placeholder="00"
                         className="w-full bg-background border border-border p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
                       />
                     </div>
-                    
+
                     <div className="md:col-span-2 space-y-2">
                       <Label className="text-[10px] uppercase tracking-widest font-mono">WhatsApp (com DDD)</Label>
-                      <input 
+                      <input
                         name="whatsapp" value={formData.whatsapp} onChange={handleWhatsAppChange}
                         type="tel"
                         inputMode="numeric"
@@ -442,8 +455,8 @@ Protocolo: *${bookingCode}*
                       <div className="md:col-span-2 bg-destructive/5 border border-destructive/20 p-4 space-y-3">
                         <p className="text-[11px] font-bold text-destructive uppercase tracking-widest">Atenção: Menor de Idade</p>
                         <div className="flex items-center space-x-3">
-                          <Checkbox 
-                            id="minor" checked={formData.termoMenorIdade} 
+                          <Checkbox
+                            id="minor" checked={formData.termoMenorIdade}
                             onCheckedChange={(c) => setFormData(p => ({ ...p, termoMenorIdade: !!c }))}
                           />
                           <Label htmlFor="minor" className="text-xs font-bold">Confirmo autorização dos responsáveis.</Label>
@@ -453,8 +466,8 @@ Protocolo: *${bookingCode}*
 
                     <div className="md:col-span-2 space-y-4">
                       <Label className="text-[10px] uppercase tracking-widest font-mono">Tipo de Tatuagem</Label>
-                      <Select 
-                        value={formData.tipoTattoo} 
+                      <Select
+                        value={formData.tipoTattoo}
                         onValueChange={(v: "Flash Disponível" | "Projeto Autoral Personalizado" | "") => setFormData(p => ({ ...p, tipoTattoo: v }))}
                       >
                         <SelectTrigger >
@@ -474,7 +487,7 @@ Protocolo: *${bookingCode}*
                           {availableFlashes.map((flash) => {
                             const isSelected = formData.flashSelecionado.includes(String(flash.id));
                             return (
-                              <div 
+                              <div
                                 key={flash.id}
                                 onClick={() => setFormData(p => {
                                   const alreadySelected = p.flashSelecionado.includes(String(flash.id));
@@ -484,20 +497,20 @@ Protocolo: *${bookingCode}*
                                   return { ...p, flashSelecionado: [...p.flashSelecionado, String(flash.id)] };
                                 })}
                                 className={cn(
-                                  "cursor-pointer aspect-[3/4] relative overflow-hidden transition-all group/flash",
-                                  isSelected 
-                                    ? "ring-2 ring-primary border-primary bg-primary/10" 
+                                  "cursor-pointer aspect-3/4 relative overflow-hidden transition-all group/flash",
+                                  isSelected
+                                    ? "ring-2 ring-primary border-primary bg-primary/10"
                                     : "border border-border hover:border-primary/50"
                                 )}
                               >
-                                <img 
-                                  src={flash.img} 
-                                  alt={flash.title} 
-                                  className="w-full h-full object-cover transition-transform duration-500 group-hover/flash:scale-105" 
+                                <img
+                                  src={flash.img}
+                                  alt={flash.title}
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover/flash:scale-105"
                                 />
-                                
+
                                 {/* Readability Gradient */}
-                                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-white via-white/40 to-transparent z-10 pointer-events-none" />
+                                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-white via-white/40 to-transparent z-10 pointer-events-none" />
 
                                 {/* Title Overlay */}
                                 <p className="absolute bottom-2 left-2 right-2 z-20 text-[8px] uppercase tracking-wider text-center font-bold line-clamp-1 text-black">
@@ -520,7 +533,7 @@ Protocolo: *${bookingCode}*
                       <div className="md:col-span-2 space-y-4">
                         <div className="space-y-2">
                           <Label className="text-[10px] uppercase tracking-widest font-mono">Descrição do Projeto</Label>
-                          <textarea 
+                          <textarea
                             name="ideia" value={formData.ideia} onChange={handleInputChange}
                             placeholder="Local do corpo, tamanho em cm e detalhes da ideia..."
                             rows={4}
@@ -534,9 +547,9 @@ Protocolo: *${bookingCode}*
                             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border hover:bg-accent/5 cursor-pointer transition-colors relative overflow-hidden">
                               {formData.referenciaImagem ? (
                                 <div className="absolute inset-0 p-2">
-                                  <img 
-                                    src={URL.createObjectURL(formData.referenciaImagem)} 
-                                    alt="Preview" 
+                                  <img
+                                    src={URL.createObjectURL(formData.referenciaImagem)}
+                                    alt="Preview"
                                     className="w-full h-full object-contain"
                                   />
                                 </div>
@@ -546,9 +559,9 @@ Protocolo: *${bookingCode}*
                                   <p className="text-xs text-muted-foreground">Clique para fazer upload</p>
                                 </div>
                               )}
-                              <input 
-                                type="file" 
-                                className="hidden" 
+                              <input
+                                type="file"
+                                className="hidden"
                                 accept="image/*"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
@@ -589,7 +602,7 @@ Protocolo: *${bookingCode}*
                               {formData.sessao_data ? format(formData.sessao_data, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 z-[110]" align="start">
+                          <PopoverContent className="w-auto p-0 z-110" align="start">
                             <Calendar
                               mode="single"
                               selected={formData.sessao_data}
@@ -607,13 +620,13 @@ Protocolo: *${bookingCode}*
                                 const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
                                 const day = date.getDay();
                                 const isSunday = day === 0;
-                                
+
                                 // On weekdays (1-5), only "Noite" is available.
                                 // If "Noite" is booked, the date is full.
                                 if (day >= 1 && day <= 5) {
                                   return isPast || bookedSlots.includes("Noite");
                                 }
-                                
+
                                 // On Saturdays (6), both are available.
                                 if (day === 6) {
                                   return isPast || bookedSlots.length >= 2;
@@ -655,8 +668,8 @@ Protocolo: *${bookingCode}*
 
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase tracking-widest font-mono mb-1">Período</Label>
-                        <ToggleGroup 
-                          type="single" 
+                        <ToggleGroup
+                          type="single"
                           value={formData.sessao_periodo}
                           onValueChange={(v: "Manhã" | "Noite" | "") => {
                             if (formData.sessao_data) {
@@ -676,18 +689,18 @@ Protocolo: *${bookingCode}*
                           }}
                           className="justify-start gap-2"
                         >
-                          <ToggleGroupItem 
-                            value="Manhã" 
+                          <ToggleGroupItem
+                            value="Manhã"
                             disabled={formData.sessao_data ? (
-                              (dynamicBookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Manhã") || 
+                              (dynamicBookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Manhã") ||
                               (formData.sessao_data.getDay() >= 1 && formData.sessao_data.getDay() <= 5)
                             ) : false}
                             className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white"
                           >
                             Manhã
                           </ToggleGroupItem>
-                          <ToggleGroupItem 
-                            value="Noite" 
+                          <ToggleGroupItem
+                            value="Noite"
                             disabled={formData.sessao_data ? (dynamicBookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Noite") : false}
                             className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white"
                           >
@@ -699,8 +712,8 @@ Protocolo: *${bookingCode}*
 
                     <div className="pt-6 border-t border-border/40 space-y-4">
                       <Label className="text-[10px] uppercase tracking-widest font-mono block">Forma de Pagamento</Label>
-                      <RadioGroup 
-                        value={formData.formaPagamento} 
+                      <RadioGroup
+                        value={formData.formaPagamento}
                         onValueChange={(v: "Pix" | "Dinheiro" | "Cartão de Débito" | "Cartão de Crédito" | "") => setFormData(p => ({ ...p, formaPagamento: v }))}
                         className="grid grid-cols-2 gap-4"
                       >
@@ -718,7 +731,7 @@ Protocolo: *${bookingCode}*
                               if (e.key === "Enter" || e.key === " ") {
                                 setFormData(p => ({ ...p, formaPagamento: m as "Pix" | "Dinheiro" | "Cartão de Débito" | "Cartão de Crédito" }));
                               }
-                         
+
                             }}
                           >
                             <RadioGroupItem value={m} id={m} className="border-border text-primary" />
@@ -726,45 +739,55 @@ Protocolo: *${bookingCode}*
                           </div>
                         ))}
                       </RadioGroup>
-                 
+
 
                       {formData.formaPagamento === "Cartão de Crédito" && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
                           className="grid grid-cols-2 gap-4 pt-2"
                         >
                           <div className="space-y-2">
                             <Label className="text-[10px] uppercase tracking-widest font-mono">Bandeira</Label>
-                            <Select 
-                              value={formData.bandeiraCartao} 
+                            <Select
+                              value={formData.bandeiraCartao}
                               onValueChange={(v) => setFormData(p => ({ ...p, bandeiraCartao: v }))}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Bandeira" />
                               </SelectTrigger>
-                              <SelectContent className="px-3 py-2">
+                              <SelectContent className="px-3 py-2"
+                                side="top"
+                                align="start"
+                                position="popper"
+                                avoidCollisions={false}
+                                sideOffset={4}>
+
                                 {BANDEIRAS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           </div>
                           <div className="space-y-2">
                             <Label className="text-[10px] uppercase tracking-widest font-mono">Parcelas</Label>
-                            <Select 
-                              value={formData.parcelasCredito} 
+                            <Select
+                              value={formData.parcelasCredito}
                               onValueChange={(v) => setFormData(p => ({ ...p, parcelasCredito: v }))}
-      
-                      
+
+
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Parcelas" />
                               </SelectTrigger>
-                              <SelectContent  className="px-3 py-2" side="top">
+                              <SelectContent className="px-3 py-2" side="top"
+                                align="start"
+                                sideOffset={4}
+                                position="popper"
+                                avoidCollisions={false}>
                                 {[...Array(12)].map((_, i) => (
-                                  <SelectItem key={i+1} value={String(i+1)}>{i+1}x</SelectItem>
+                                  <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}x</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
-                       
+
                           </div>
                         </motion.div>
                       )}
@@ -776,7 +799,7 @@ Protocolo: *${bookingCode}*
               {/* STEP 4: Confirmation */}
               {step === 4 && (
                 <div className="space-y-8 text-center py-6 animate-in zoom-in-95">
-                <div className="w-16 h-16 border border-primary text-primary flex items-center justify-center mx-auto rounded-full">
+                  <div className="w-16 h-16 border border-primary text-primary flex items-center justify-center mx-auto rounded-full">
                     <StarIcon className="w-8 h-8" weight="fill" />
                   </div>
                   <div>
@@ -806,8 +829,8 @@ Protocolo: *${bookingCode}*
                     <CheckIcon className="w-10 h-10" weight="bold" />
                   </div>
                   <div className="space-y-4">
-                    <h3 className="text-2xl font-bbh uppercase tracking-widest text-black">Agendamento enviado!</h3>
-                    <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
+                    <h3 className="text-sm md:text-2xl font-bbh uppercase tracking-widest text-black">Agendamento enviado!</h3>
+                    <p className="text-muted-foreground text-xs md:text-sm max-w-sm mx-auto leading-relaxed">
                       Recebemos sua solicitação com sucesso. Nossa equipe entrará em contato com você pelo WhatsApp em breve para confirmar os detalhes.
                     </p>
                   </div>
@@ -817,32 +840,39 @@ Protocolo: *${bookingCode}*
             </div>
 
             {/* Footer */}
-            <div className="border-t border-border p-4 md:p-6 bg-background flex justify-between gap-4">
+            <div className="border-t border-border p-4 md:p-6 bg-background flex justify-around gap-4">
+
               {step > 1 && step < 5 ? (
                 <button onClick={prevStep} className="px-8 py-4 border border-border bg-white/40 backdrop-blur-sm text-[10px] uppercase tracking-[0.25em] font-bold hover:border-black transition-all duration-150 flex items-center justify-center gap-2">
                   <ArrowLeftIcon className="mr-2" /> Voltar
                 </button>
-              ) : <div />}
+              ) : <button onClick={() => {
+                setStep(1);
+                setFormData(initialFormData);
+                onClose();
+              }} className="px-8 py-4 border border-border bg-white/40 backdrop-blur-sm text-[10px] uppercase tracking-[0.25em] font-bold hover:border-black transition-all duration-150 flex items-center justify-center gap-2">
+                Fechar
+              </button>}
 
               {step < 4 ? (
                 <button onClick={nextStep} className="text-sm font-mono font-bold text-white bg-black px-6 py-2 transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black">
                   Próximo
                 </button>
               ) : step === 4 ? (
-                <button 
-                  onClick={handleSubmit} 
+                <button
+                  onClick={handleSubmit}
                   disabled={isSubmitting}
                   className="text-sm font-mono font-bold text-white bg-black px-6 py-2 transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? "Enviando..." : "Enviar"}
                 </button>
               ) : (
-                <button 
+                <button
                   onClick={() => {
                     setStep(1);
                     setFormData(initialFormData);
                     onClose();
-                  }} 
+                  }}
                   className="text-sm font-mono font-bold text-white bg-black px-12 py-2 transition-all duration-150 ease-in uppercase hover:bg-transparent hover:text-black hover:pb-0 hover:border-b-2 hover:border-black w-full sm:w-auto"
                 >
                   Fechar
