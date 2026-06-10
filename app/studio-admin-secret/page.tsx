@@ -5,7 +5,7 @@ import {
   ChartLineUp, 
   Users, 
   Package, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Tag, 
   Calculator,
   SignOut,
@@ -13,6 +13,7 @@ import {
   XCircle,
   Plus,
   Trash,
+  Pencil,
   ArrowUp,
   ArrowDown
 } from "@phosphor-icons/react";
@@ -33,6 +34,9 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -166,10 +170,13 @@ export default function AdminDashboard() {
                 <Package size={16} className="mr-2" /> Estoque
               </TabsTrigger>
               <TabsTrigger value="flashes" className="data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-6 py-2.5 text-[10px] uppercase tracking-widest font-bold font-mono">
-                <Tag size={16} className="mr-2" /> Flashes
+                <Tag size={16} className="mr-2" /> Autorais
               </TabsTrigger>
               <TabsTrigger value="calculator" className="data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-6 py-2.5 text-[10px] uppercase tracking-widest font-bold font-mono">
                 <Calculator size={16} className="mr-2" /> Calculadora
+              </TabsTrigger>
+              <TabsTrigger value="promotions" className="data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-6 py-2.5 text-[10px] uppercase tracking-widest font-bold font-mono">
+                <Tag size={16} className="mr-2" /> Promoções
               </TabsTrigger>
             </TabsList>
           </div>
@@ -189,6 +196,9 @@ export default function AdminDashboard() {
             </TabsContent>
             <TabsContent key="calculator" value="calculator">
               <CalculatorTab />
+            </TabsContent>
+            <TabsContent key="promotions" value="promotions">
+              <PromotionsTab />
             </TabsContent>
           </AnimatePresence>
         </Tabs>
@@ -228,13 +238,13 @@ function OverviewTab() {
 
     records.forEach(record => {
       const date = format(new Date(record.created_at), 'dd/MM');
-      if (!chartData[date]) chartData[date] = { date, income: 0, expense: 0 };
+      if (!chartData[date]) chartData[date] = { data: date, Faturamento: 0, Despesas: 0 };
       
       if (record.type === 'income') {
-        chartData[date].income = Number((chartData[date].income + Number(record.amount)).toFixed(2));
+        chartData[date].Faturamento = Number((chartData[date].Faturamento + Number(record.amount)).toFixed(2));
         totalIncome += Number(record.amount);
       } else {
-        chartData[date].expense = Number((chartData[date].expense + Number(record.amount)).toFixed(2));
+        chartData[date].Despesas = Number((chartData[date].Despesas + Number(record.amount)).toFixed(2));
         totalExpenses += Number(record.amount);
       }
     });
@@ -289,14 +299,15 @@ function OverviewTab() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontFamily: 'monospace' }} />
+              <XAxis dataKey="data" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontFamily: 'monospace' }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontFamily: 'monospace' }} />
               <Tooltip 
                 cursor={{ fill: '#f4f4f5' }}
                 contentStyle={{ border: '1px solid #e4e4e7', borderRadius: '0', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase' }}
+                formatter={(value: any) => [`R$ ${value}`, '']}
               />
-              <Bar dataKey="income" fill="#000" radius={[2, 2, 0, 0]} barSize={40} />
-              <Bar dataKey="expense" fill="#ef4444" radius={[2, 2, 0, 0]} barSize={40} />
+              <Bar dataKey="Faturamento" fill="#000" radius={[2, 2, 0, 0]} barSize={40} />
+              <Bar dataKey="Despesas" fill="#ef4444" radius={[2, 2, 0, 0]} barSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -307,6 +318,7 @@ function OverviewTab() {
 
 function BookingsTab() {
   const [bookings, setBookings] = useState<any[]>([]);
+  const [flashes, setFlashes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Modal States
@@ -314,14 +326,23 @@ function BookingsTab() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
   
   // Form States for Modals
   const [agreedPrice, setAgreedPrice] = useState("");
   const [sinalAmount, setSinalAmount] = useState("");
   const [newDate, setNewDate] = useState("");
 
+  // Completion Form States
+  const [sessionHours, setSessionHours] = useState("1");
+  const [usedCartridges, setUsedCartridges] = useState<{id: string, qty: number}[]>([]);
+  const [finalChargedPrice, setFinalChargedPrice] = useState("");
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+
   useEffect(() => {
     fetchBookings();
+    fetchInventoryForModals();
+    fetchFlashes();
   }, []);
 
   const fetchBookings = async () => {
@@ -333,6 +354,34 @@ function BookingsTab() {
     if (error) toast.error("Erro ao carregar agendamentos.");
     else setBookings(data || []);
     setLoading(false);
+  };
+
+  const fetchFlashes = async () => {
+    const { data } = await supabase.from('flashes').select('id, title');
+    if (data) setFlashes(data);
+  };
+
+  const fetchInventoryForModals = async () => {
+    const { data } = await supabase.from('inventory').select('*');
+    if (data) setInventoryItems(data);
+  };
+
+  const calculateSetupCost = () => {
+    if (inventoryItems.length === 0) return 40; // Fallback
+
+    const descartaveis = inventoryItems.filter(i => i.category === 'Descartáveis');
+    const costDescartaveis = descartaveis.reduce((acc, i) => acc + Number(i.cost_per_unit), 0);
+
+    const tintas = inventoryItems.filter(i => i.category === 'Tintas');
+    const avgTinta = tintas.length > 0 ? tintas.reduce((acc, i) => acc + Number(i.cost_per_unit), 0) / tintas.length : 0;
+    
+    const limpeza = inventoryItems.filter(i => i.category === 'Limpeza/Sabões');
+    const avgLimpeza = limpeza.length > 0 ? limpeza.reduce((acc, i) => acc + Number(i.cost_per_unit), 0) / limpeza.length : 0;
+
+    const cremes = inventoryItems.filter(i => i.category === 'Cremes/Pomadas');
+    const avgCremes = cremes.length > 0 ? cremes.reduce((acc, i) => acc + Number(i.cost_per_unit), 0) / cremes.length : 0;
+
+    return costDescartaveis + (avgTinta * 4) + (avgLimpeza * 10) + (avgCremes * 5);
   };
 
   const handleConfirmBooking = async () => {
@@ -400,23 +449,52 @@ function BookingsTab() {
     }
   };
 
-  const handleCompleteBooking = async (b: any) => {
-    const total = Number(b.agreed_price);
+  const handleCompleteSubmit = async () => {
+    if (!finalChargedPrice) {
+      toast.error("Informe o preço cobrado.");
+      return;
+    }
+
+    const total = Number(finalChargedPrice);
     const studioCut = total * 0.70;
 
+    // 1. Deduct Cartridges from Inventory
+    for (const cart of usedCartridges) {
+      const item = inventoryItems.find(i => i.id === cart.id);
+      if (item) {
+        await supabase
+          .from('inventory')
+          .update({ quantity: Number(item.quantity) - cart.qty })
+          .eq('id', cart.id);
+      }
+    }
+
+    // 2. Log financial income
     await supabase.from('financial_records').insert({
       type: 'income',
       amount: studioCut,
-      description: `Booking concluído: ${b.nome} (Total: R$ ${total}) - Ref: ${b.id}`,
+      description: `Booking concluído: ${selectedBooking.nome} (Total: R$ ${total}) - Ref: ${selectedBooking.id}`,
       category: 'booking_studio_cut'
     });
 
-    const { error } = await supabase.from('bookings').update({ status: 'concluido' }).eq('id', b.id);
-    if (error) toast.error("Erro ao concluir.");
-    else {
-      toast.success("Trabalho concluído e financeiro atualizado!");
+    // 3. Update status
+    const { error } = await supabase.from('bookings').update({ status: 'concluido' }).eq('id', selectedBooking.id);
+    
+    if (error) {
+      toast.error("Erro ao concluir.");
+    } else {
+      toast.success("Tattoo finalizada e estoque atualizado!");
+      setIsCompleteModalOpen(false);
       fetchBookings();
     }
+  };
+
+  const handleCompleteBooking = (b: any) => {
+    setSelectedBooking(b);
+    setFinalChargedPrice(String(b.agreed_price || ""));
+    setSessionHours("1");
+    setUsedCartridges([]);
+    setIsCompleteModalOpen(true);
   };
 
   const deleteBooking = async (b: any) => {
@@ -488,26 +566,42 @@ function BookingsTab() {
                 </td>
                 <td className="p-4">
                   <div className="flex flex-col gap-2 max-w-[200px]">
-                    {b.referencia_imagem_url ? (
-                      <a 
-                        href={b.referencia_imagem_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="w-12 h-12 border border-border overflow-hidden hover:border-black transition-colors block"
-                      >
-                        <img 
-                          src={b.referencia_imagem_url} 
-                          alt="Referência" 
-                          className="w-full h-full object-cover"
-                        />
-                      </a>
+                    {b.tipo_tattoo === "Flash Disponível" ? (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] uppercase font-mono text-muted-foreground mb-1">Flashes:</span>
+                        {b.flash_selecionado?.map((id: string) => {
+                          const flash = flashes.find(f => String(f.id) === id);
+                          return (
+                            <span key={id} className="text-[10px] font-bold leading-tight border-l-2 border-black pl-2 py-0.5">
+                              {flash ? flash.title : `Flash #${id}`}
+                            </span>
+                          );
+                        })}
+                      </div>
                     ) : (
-                      <span className="text-[9px] uppercase font-mono text-muted-foreground">Sem ref</span>
-                    )}
-                    {b.ideia && (
-                      <p className="text-[10px] leading-tight text-zinc-600 line-clamp-2" title={b.ideia}>
-                        {b.ideia}
-                      </p>
+                      <>
+                        {b.referencia_imagem_url ? (
+                          <a 
+                            href={b.referencia_imagem_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="w-12 h-12 border border-border overflow-hidden hover:border-black transition-colors block"
+                          >
+                            <img 
+                              src={b.referencia_imagem_url} 
+                              alt="Referência" 
+                              className="w-full h-full object-cover"
+                            />
+                          </a>
+                        ) : (
+                          <span className="text-[9px] uppercase font-mono text-muted-foreground">Sem ref</span>
+                        )}
+                        {b.ideia && (
+                          <p className="text-[10px] leading-tight text-zinc-600 line-clamp-2" title={b.ideia}>
+                            {b.ideia}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </td>
@@ -558,7 +652,7 @@ function BookingsTab() {
                           className="p-1.5 hover:bg-zinc-100 text-zinc-600 rounded-full" 
                           title="Remarcar"
                         >
-                          <Calendar size={18} />
+                          <CalendarIcon size={18} />
                         </button>
                         <button 
                           onClick={() => {
@@ -656,6 +750,135 @@ function BookingsTab() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Complete Session Modal */}
+      <AnimatePresence>
+        {isCompleteModalOpen && selectedBooking && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white p-8 max-w-lg w-full space-y-6 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="border-b pb-4">
+                <h3 className="text-xs font-bbh uppercase tracking-widest">Finalizar Trabalho</h3>
+                <p className="text-[10px] text-muted-foreground uppercase font-mono mt-1">Cliente: {selectedBooking.nome}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-mono">Tempo de Sessão (Horas)</Label>
+                    <input 
+                      type="number" value={sessionHours} onChange={e => setSessionHours(e.target.value)}
+                      className="w-full border p-3 text-sm outline-none" 
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-mono block">Cartuchos Utilizados</Label>
+                    <select 
+                      className="w-full border p-3 text-sm outline-none bg-white mb-2"
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        if (!id) return;
+                        if (!usedCartridges.find(c => c.id === id)) {
+                          setUsedCartridges(prev => [...prev, { id, qty: 1 }]);
+                        }
+                      }}
+                      value=""
+                    >
+                      <option value="">+ Selecionar Cartucho</option>
+                      {inventoryItems.filter(i => i.category === 'Agulhas/Cartuchos').map(i => (
+                        <option key={i.id} value={i.id}>{i.item_name} (Estoque: {i.quantity})</option>
+                      ))}
+                    </select>
+
+                    <div className="space-y-2">
+                      {usedCartridges.map(cart => {
+                        const item = inventoryItems.find(i => i.id === cart.id);
+                        return (
+                          <div key={cart.id} className="flex items-center justify-between bg-zinc-50 p-2 border">
+                            <span className="text-[10px] uppercase font-bold">{item?.item_name}</span>
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="number" value={cart.qty}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  setUsedCartridges(prev => prev.map(c => c.id === cart.id ? { ...c, qty: val } : c));
+                                }}
+                                className="w-12 border p-1 text-center text-xs"
+                              />
+                              <button onClick={() => setUsedCartridges(prev => prev.filter(c => c.id !== cart.id))} className="text-red-500 hover:bg-red-50 p-1 rounded">
+                                <Trash size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-black text-white p-6 space-y-4">
+                  <h4 className="text-[10px] uppercase tracking-widest font-mono text-zinc-400">Resumo de Custos</h4>
+                  <div className="space-y-2 text-[11px] font-mono">
+                    <div className="flex justify-between">
+                      <span>Setup Base:</span>
+                      <span>R$ {calculateSetupCost().toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Mão de obra:</span>
+                      <span>R$ {(Number(sessionHours) * 40).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Cartuchos:</span>
+                      <span>R$ {usedCartridges.reduce((acc, c) => {
+                        const item = inventoryItems.find(i => i.id === c.id);
+                        return acc + (Number(item?.cost_per_unit || 0) * c.qty);
+                      }, 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-zinc-800 pt-2 font-bold text-accent">
+                      <span>Sugerido:</span>
+                      <span>R$ {(
+                        calculateSetupCost() + 
+                        (Number(sessionHours) * 40) + 
+                        usedCartridges.reduce((acc, c) => {
+                          const item = inventoryItems.find(i => i.id === c.id);
+                          return acc + (Number(item?.cost_per_unit || 0) * c.qty);
+                        }, 0)
+                      ).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-mono text-zinc-400">Preço Final Cobrado (R$)</Label>
+                    <input 
+                      type="number" value={finalChargedPrice} onChange={e => setFinalChargedPrice(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-700 p-3 text-sm outline-none text-white focus:border-accent transition-colors" 
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-zinc-800 space-y-2">
+                    <div className="flex justify-between text-[10px] uppercase font-mono">
+                      <span className="text-zinc-400">Divisão Studio (70%):</span>
+                      <span className="font-bold text-accent">R$ {(Number(finalChargedPrice) * 0.70).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px] uppercase font-mono">
+                      <span className="text-zinc-400">Sua Parte (30%):</span>
+                      <span className="font-bold">R$ {(Number(finalChargedPrice) * 0.30).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <Button variant="outline" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsCompleteModalOpen(false)}>Cancelar</Button>
+                <Button className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={handleCompleteSubmit}>Concluir e Baixar Estoque</Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -663,6 +886,32 @@ function BookingsTab() {
 function InventoryTab() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Modal State
+  const [isNewItemModalOpen, setIsNewItemModalOpen] = useState(false);
+  const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
+  const [isConsumeModalOpen, setIsConsumeModalOpen] = useState(false);
+  
+  const [newItemData, setNewItemData] = useState({
+    item_name: "",
+    category: "Agulhas/Cartuchos",
+    quantity: "0",
+    min_quantity: "5",
+    unit: "un",
+    purchase_price: "0" // Helper for calculation
+  });
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [consumingItem, setConsumingItem] = useState<any>(null);
+  const [consumeAmount, setConsumeAmount] = useState("");
+
+  const categories = [
+    "Agulhas/Cartuchos",
+    "Tintas",
+    "Descartáveis",
+    "Cremes/Pomadas",
+    "Limpeza/Sabões",
+    "Outros"
+  ];
 
   useEffect(() => {
     fetchInventory();
@@ -680,16 +929,97 @@ function InventoryTab() {
     setLoading(false);
   };
 
-  const addStock = async (id: string, currentQty: number, costPerUnit: number) => {
-    const qty = window.prompt("Quantas unidades deseja adicionar?");
-    if (!qty) return;
+  const handleCreateItem = async () => {
+    if (!newItemData.item_name) {
+      toast.error("Preencha os campos obrigatórios.");
+      return;
+    }
+
+    const qty = Number(newItemData.quantity);
+    const totalPrice = Number(newItemData.purchase_price);
+    const calculatedCost = qty > 0 ? Number((totalPrice / qty).toFixed(4)) : 0;
+
+    const { error } = await supabase
+      .from('inventory')
+      .insert([{
+        item_name: newItemData.item_name,
+        category: newItemData.category,
+        quantity: qty,
+        min_quantity: Number(newItemData.min_quantity),
+        cost_per_unit: calculatedCost,
+        unit: newItemData.unit
+      }]);
+
+    if (error) {
+      toast.error("Erro ao criar item.");
+    } else {
+      if (totalPrice > 0) {
+        await supabase.from('financial_records').insert({
+          type: 'expense',
+          amount: totalPrice,
+          description: `Estoque inicial: ${newItemData.item_name}`,
+          category: 'inventory_restock'
+        });
+      }
+
+      toast.success("Item adicionado ao estoque!");
+      setIsNewItemModalOpen(false);
+      setNewItemData({
+        item_name: "",
+        category: "Agulhas/Cartuchos",
+        quantity: "0",
+        min_quantity: "5",
+        unit: "un",
+        purchase_price: "0"
+      });
+      fetchInventory();
+    }
+  };
+
+  const handleEditItem = async () => {
+    if (!editingItem.item_name) {
+      toast.error("Preencha os campos obrigatórios.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from('inventory')
+      .update({
+        item_name: editingItem.item_name,
+        category: editingItem.category,
+        min_quantity: Number(editingItem.min_quantity),
+        cost_per_unit: Number(editingItem.cost_per_unit),
+        unit: editingItem.unit
+      })
+      .eq('id', editingItem.id);
+
+    if (error) {
+      toast.error("Erro ao atualizar item.");
+    } else {
+      toast.success("Item atualizado!");
+      setIsEditItemModalOpen(false);
+      setEditingItem(null);
+      fetchInventory();
+    }
+  };
+
+  const addStock = async (id: string, currentQty: number, item: any) => {
+    const qtyInput = window.prompt(`Quantidade comprada (${item.unit}):`);
+    if (!qtyInput) return;
     
-    const amountAdded = Number(qty);
-    const totalCost = amountAdded * costPerUnit;
+    const priceInput = window.prompt("Valor total pago (R$):");
+    if (!priceInput) return;
+
+    const amountAdded = Number(qtyInput);
+    const totalPrice = Number(priceInput);
+    const newCostPerUnit = Number((totalPrice / amountAdded).toFixed(4));
 
     const { error: updateError } = await supabase
       .from('inventory')
-      .update({ quantity: currentQty + amountAdded })
+      .update({ 
+        quantity: currentQty + amountAdded,
+        cost_per_unit: newCostPerUnit
+      })
       .eq('id', id);
 
     if (updateError) {
@@ -697,16 +1027,36 @@ function InventoryTab() {
       return;
     }
 
-    // Log expense
     await supabase.from('financial_records').insert({
       type: 'expense',
-      amount: totalCost,
-      description: `Reposição de estoque (${qty} unidades)`,
+      amount: totalPrice,
+      description: `Reposição: ${item.item_name} (${amountAdded}${item.unit})`,
       category: 'inventory_restock'
     });
 
     toast.success("Estoque atualizado e despesa registrada!");
     fetchInventory();
+  };
+
+  const handleConsume = async (amount: number) => {
+    if (!consumingItem || consumingItem.quantity < amount) {
+      toast.error("Quantidade insuficiente no estoque.");
+      return;
+    }
+    
+    const { error } = await supabase
+      .from('inventory')
+      .update({ quantity: Number((consumingItem.quantity - amount).toFixed(2)) })
+      .eq('id', consumingItem.id);
+
+    if (error) {
+      toast.error("Erro ao atualizar.");
+    } else {
+      setIsConsumeModalOpen(false);
+      setConsumingItem(null);
+      setConsumeAmount("");
+      fetchInventory();
+    }
   };
 
   return (
@@ -718,53 +1068,337 @@ function InventoryTab() {
     >
       <div className="flex justify-between items-center">
         <h3 className="text-xs font-bbh uppercase tracking-widest">Controle de Materiais</h3>
-        <Button size="sm" className="rounded-none text-[10px] uppercase font-bold tracking-widest">
+        <Button 
+          size="sm" 
+          className="rounded-none text-[10px] uppercase font-bold tracking-widest"
+          onClick={() => setIsNewItemModalOpen(true)}
+        >
           <Plus size={16} className="mr-2" /> Novo Item
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {items.map(item => (
-          <div key={item.id} className="bg-white border border-border p-6 space-y-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <h4 className="text-[11px] font-bold uppercase">{item.item_name}</h4>
-                <p className="text-[9px] text-muted-foreground uppercase font-mono">{item.category}</p>
+        {items.map(item => {
+          const isLow = item.quantity <= item.min_quantity;
+          const isCritical = item.quantity <= item.min_quantity / 2;
+          const totalInvested = Number(item.quantity) * Number(item.cost_per_unit);
+          
+          return (
+            <div key={item.id} className="bg-white border border-border p-6 space-y-4 relative group">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="text-[11px] font-bold uppercase">{item.item_name}</h4>
+                  <p className="text-[9px] text-muted-foreground uppercase font-mono">{item.category}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className={cn(
+                    "text-[10px] font-mono px-2 py-1 font-bold",
+                    isCritical ? "bg-red-500 text-white" : 
+                    isLow ? "bg-amber-400 text-white" : 
+                    "bg-green-500 text-white"
+                  )}>
+                    {item.quantity} <span className="text-[8px] opacity-70 uppercase">{(item.category === 'Tintas' && (item.unit === 'un' || !item.unit)) ? 'ml' : (item.unit || 'un')}</span>
+                  </span>
+                  <button 
+                    onClick={() => {
+                      setEditingItem(item);
+                      setIsEditItemModalOpen(true);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-100 rounded transition-all text-zinc-400 hover:text-black"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                </div>
               </div>
-              <span className={cn(
-                "text-[10px] font-mono px-2 py-1",
-                item.quantity <= item.min_quantity ? "bg-red-100 text-red-700 font-bold" : "bg-zinc-100 text-zinc-600"
-              )}>
-                {item.quantity} un
-              </span>
+              
+              <div className="flex justify-between items-center pt-2 border-t border-zinc-100">
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-muted-foreground font-mono uppercase">Custo: R$ {Number(item.cost_per_unit).toFixed(2)}/{(item.category === 'Tintas' && (item.unit === 'un' || !item.unit)) ? 'ml' : (item.unit || 'un')}</span>
+                  <span className="text-[10px] font-bold font-mono text-zinc-800">Total: R$ {totalInvested.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      if (item.unit === 'un' || !item.unit) {
+                        setConsumingItem(item);
+                        handleConsume(1);
+                      } else {
+                        setConsumingItem(item);
+                        setIsConsumeModalOpen(true);
+                      }
+                    }}
+                    className="w-8 h-8 flex items-center justify-center border border-border hover:bg-zinc-100 transition-colors"
+                  >
+                    <ArrowDown size={14} className="text-red-500" />
+                  </button>
+                  <button 
+                    onClick={() => addStock(item.id, item.quantity, item)}
+                    className="w-8 h-8 flex items-center justify-center border border-border hover:bg-zinc-100 transition-colors"
+                  >
+                    <Plus size={14} className="text-green-600" />
+                  </button>
+                </div>
+              </div>
             </div>
-            
-            <div className="flex justify-between items-center pt-2 border-t border-zinc-100">
-              <span className="text-[10px] text-muted-foreground font-mono">Custo/Un: R$ {Number(item.cost_per_unit).toFixed(2)}</span>
-              <button 
-                onClick={() => addStock(item.id, item.quantity, item.cost_per_unit)}
-                className="text-[10px] font-bold uppercase text-primary hover:underline"
-              >
-                Repor Estoque
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* New Item Modal */}
+      <AnimatePresence>
+        {isNewItemModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white p-8 max-w-md w-full space-y-6"
+            >
+              <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">Cadastrar Novo Material</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Nome do Item</Label>
+                  <input 
+                    value={newItemData.item_name} 
+                    onChange={e => setNewItemData(p => ({ ...p, item_name: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none" 
+                    placeholder="Ex: Cartucho RL 03" 
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Categoria</Label>
+                  <select 
+                    value={newItemData.category}
+                    onChange={e => {
+                      const cat = e.target.value;
+                      setNewItemData(p => ({ 
+                        ...p, 
+                        category: cat,
+                        unit: (cat === 'Tintas' || cat === 'Limpeza/Sabões') ? 'ml' : (cat === 'Cremes/Pomadas' ? 'g' : 'un')
+                      }));
+                    }}
+                    className="w-full border p-3 text-sm outline-none bg-white"
+                  >
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Unidade de Medida</Label>
+                  <select 
+                    value={newItemData.unit}
+                    onChange={e => setNewItemData(p => ({ ...p, unit: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none bg-white"
+                  >
+                    <option value="un">Unidade (un)</option>
+                    <option value="ml">Mililitros (ml)</option>
+                    <option value="g">Gramas (g)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Qtd Inicial / Tamanho</Label>
+                  <input 
+                    type="number" 
+                    value={newItemData.quantity} 
+                    onChange={e => setNewItemData(p => ({ ...p, quantity: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none" 
+                    placeholder="30"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Qtd Mínima Alerta</Label>
+                  <input 
+                    type="number" 
+                    value={newItemData.min_quantity} 
+                    onChange={e => setNewItemData(p => ({ ...p, min_quantity: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none" 
+                    placeholder="5"
+                  />
+                </div>
+                <div className="col-span-2 space-y-2 bg-zinc-50 p-4 border border-zinc-200">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono font-bold">Assistente de Custo</Label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <div className="flex-1 space-y-1">
+                      <span className="text-[9px] uppercase font-mono text-muted-foreground">Valor Total Pago (R$)</span>
+                      <input 
+                        type="number" 
+                        value={newItemData.purchase_price} 
+                        onChange={e => setNewItemData(p => ({ ...p, purchase_price: e.target.value }))}
+                        className="w-full border p-2 text-sm outline-none bg-white" 
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="text-[10px] font-mono pt-4">= R$ {(Number(newItemData.purchase_price) / (Number(newItemData.quantity) || 1)).toFixed(2)}/{newItemData.unit}</div>
+                  </div>
+                </div>
+                <div className="col-span-2 pt-4 flex gap-3">
+                  <Button variant="outline" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsNewItemModalOpen(false)}>Sair</Button>
+                  <Button className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={handleCreateItem}>Cadastrar</Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Item Modal */}
+      <AnimatePresence>
+        {isEditItemModalOpen && editingItem && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white p-8 max-w-md w-full space-y-6"
+            >
+              <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">Editar Material</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Nome do Item</Label>
+                  <input 
+                    value={editingItem.item_name} 
+                    onChange={e => setEditingItem((p: any) => ({ ...p, item_name: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none" 
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Categoria</Label>
+                  <select 
+                    value={editingItem.category}
+                    onChange={e => setEditingItem((p: any) => ({ ...p, category: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none bg-white"
+                  >
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Unidade de Medida</Label>
+                  <select 
+                    value={editingItem.unit}
+                    onChange={e => setEditingItem((p: any) => ({ ...p, unit: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none bg-white"
+                  >
+                    <option value="un">Unidade (un)</option>
+                    <option value="ml">Mililitros (ml)</option>
+                    <option value="g">Gramas (g)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Qtd Mínima</Label>
+                  <input 
+                    type="number" 
+                    value={editingItem.min_quantity} 
+                    onChange={e => setEditingItem((p: any) => ({ ...p, min_quantity: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Custo por Unidade (R$)</Label>
+                  <input 
+                    type="number" 
+                    value={editingItem.cost_per_unit} 
+                    onChange={e => setEditingItem((p: any) => ({ ...p, cost_per_unit: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none" 
+                  />
+                </div>
+                <div className="col-span-2 pt-4 flex gap-3">
+                  <Button variant="outline" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsEditItemModalOpen(false)}>Sair</Button>
+                  <Button className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={handleEditItem}>Salvar Alterações</Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Consume Modal (Smart Consumption) */}
+      <AnimatePresence>
+        {isConsumeModalOpen && consumingItem && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white p-8 max-w-sm w-full space-y-6 text-center"
+            >
+              <div className="space-y-2">
+                <h3 className="text-xs font-bbh uppercase tracking-widest">Consumir Material</h3>
+                <p className="text-[10px] uppercase font-mono text-muted-foreground">{consumingItem.item_name} ({consumingItem.quantity}{consumingItem.unit})</p>
+              </div>
+
+              {/* Presets based on Categoria/Nome */}
+              <div className="grid grid-cols-1 gap-3">
+                {consumingItem.category === 'Tintas' && (
+                  <>
+                    <Button variant="outline" className="rounded-none text-[10px] uppercase font-bold border-zinc-200" onClick={() => handleConsume(2)}>Batoque M (2ml)</Button>
+                    <Button variant="outline" className="rounded-none text-[10px] uppercase font-bold border-zinc-200" onClick={() => handleConsume(4)}>Batoque G (4ml)</Button>
+                  </>
+                )}
+                {consumingItem.category === 'Limpeza/Sabões' || consumingItem.item_name.toLowerCase().includes('soap') ? (
+                  <Button variant="outline" className="rounded-none text-[10px] uppercase font-bold border-zinc-200" onClick={() => handleConsume(250)}>Refil Foamer (250ml)</Button>
+                ) : null}
+                
+                {/* Custom Input */}
+                <div className="pt-4 space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono block">Quantidade Customizada ({consumingItem.unit})</Label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="number" 
+                      value={consumeAmount} 
+                      onChange={e => setConsumeAmount(e.target.value)}
+                      className="flex-1 border p-2 text-sm outline-none text-center" 
+                      placeholder="0.00"
+                    />
+                    <Button className="rounded-none text-[10px] uppercase font-bold" onClick={() => handleConsume(Number(consumeAmount))}>Ok</Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <Button variant="ghost" className="w-full rounded-none text-[10px] uppercase font-bold text-muted-foreground" onClick={() => {
+                  setIsConsumeModalOpen(false);
+                  setConsumingItem(null);
+                  setConsumeAmount("");
+                }}>Cancelar</Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
 function CalculatorTab() {
   const [hours, setHours] = useState(1);
-  const [cartridges, setCartridges] = useState(1);
   const [discount, setDiscount] = useState(0);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [selectedCartridges, setSelectedCartridges] = useState<{id: string, qty: number}[]>([]);
 
-  const baseMaterial = 40;
+  useEffect(() => {
+    fetchInventory();
+  }, []);
+
+  const fetchInventory = async () => {
+    const { data } = await supabase.from('inventory').select('*');
+    if (data) setInventoryItems(data);
+  };
+
+  const calculateSetupCost = () => {
+    if (inventoryItems.length === 0) return 40;
+    const descartaveis = inventoryItems.filter(i => i.category === 'Descartáveis');
+    const costDescartaveis = descartaveis.reduce((acc, i) => acc + Number(i.cost_per_unit), 0);
+    const tintas = inventoryItems.filter(i => i.category === 'Tintas');
+    const avgTinta = tintas.length > 0 ? tintas.reduce((acc, i) => acc + Number(i.cost_per_unit), 0) / tintas.length : 0;
+    const limpeza = inventoryItems.filter(i => i.category === 'Limpeza/Sabões');
+    const avgLimpeza = limpeza.length > 0 ? limpeza.reduce((acc, i) => acc + Number(i.cost_per_unit), 0) / limpeza.length : 0;
+    const cremes = inventoryItems.filter(i => i.category === 'Cremes/Pomadas');
+    const avgCremes = cremes.length > 0 ? cremes.reduce((acc, i) => acc + Number(i.cost_per_unit), 0) / cremes.length : 0;
+    return costDescartaveis + (avgTinta * 4) + (avgLimpeza * 10) + (avgCremes * 5);
+  };
+
+  const baseMaterial = calculateSetupCost();
   const hourRate = 40;
-  const cartridgeRate = 11;
 
-  const totalPrice = (hours * hourRate) + baseMaterial + (cartridges * cartridgeRate);
+  const cartridgesCost = selectedCartridges.reduce((acc, c) => {
+    const item = inventoryItems.find(i => i.id === c.id);
+    return acc + (Number(item?.cost_per_unit || 0) * c.qty);
+  }, 0);
+
+  const totalPrice = (hours * hourRate) + baseMaterial + cartridgesCost;
   const discountedPrice = totalPrice * (1 - discount / 100);
 
   const artistCut = discountedPrice * 0.30;
@@ -779,7 +1413,7 @@ function CalculatorTab() {
       className="grid grid-cols-1 md:grid-cols-2 gap-8"
     >
       <div className="bg-white border border-border p-8 space-y-8">
-        <h3 className="text-xs font-bbh uppercase tracking-widest">Orçamento Técnico</h3>
+        <h3 className="text-xs font-bbh uppercase tracking-widest">Orcamento Tecnico</h3>
         
         <div className="space-y-6">
           <div className="space-y-2">
@@ -791,15 +1425,50 @@ function CalculatorTab() {
               className="w-full border border-border p-3 text-sm focus:ring-1 focus:ring-black outline-none"
             />
           </div>
+
           <div className="space-y-2">
-            <Label className="text-[10px] uppercase tracking-widest font-mono">Quantidade de Cartuchos</Label>
-            <input 
-              type="number" 
-              value={cartridges} 
-              onChange={(e) => setCartridges(Number(e.target.value))}
-              className="w-full border border-border p-3 text-sm focus:ring-1 focus:ring-black outline-none"
-            />
+            <Label className="text-[10px] uppercase tracking-widest font-mono block">Cartuchos</Label>
+            <select 
+              className="w-full border p-3 text-sm outline-none bg-white mb-2"
+              onChange={(e) => {
+                const id = e.target.value;
+                if (!id) return;
+                if (!selectedCartridges.find(c => c.id === id)) {
+                  setSelectedCartridges(prev => [...prev, { id, qty: 1 }]);
+                }
+              }}
+              value=""
+            >
+              <option value="">+ Adicionar Cartucho</option>
+              {inventoryItems.filter(i => i.category === 'Agulhas/Cartuchos').map(i => (
+                <option key={i.id} value={i.id}>{i.item_name}</option>
+              ))}
+            </select>
+            <div className="space-y-2">
+              {selectedCartridges.map(cart => {
+                const item = inventoryItems.find(i => i.id === cart.id);
+                return (
+                  <div key={cart.id} className="flex items-center justify-between bg-zinc-50 p-2 border">
+                    <span className="text-[10px] uppercase font-bold">{item?.item_name}</span>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" value={cart.qty}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setSelectedCartridges(prev => prev.map(c => c.id === cart.id ? { ...c, qty: val } : c));
+                        }}
+                        className="w-12 border p-1 text-center text-xs"
+                      />
+                      <button onClick={() => setSelectedCartridges(prev => prev.filter(c => c.id !== cart.id))} className="text-red-500">
+                        <Trash size={14} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
+
           <div className="space-y-2">
             <Label className="text-[10px] uppercase tracking-widest font-mono">Desconto (%)</Label>
             <input 
@@ -813,7 +1482,7 @@ function CalculatorTab() {
       </div>
 
       <div className="bg-black text-white p-8 space-y-8">
-        <h3 className="text-xs font-bbh uppercase tracking-widest text-zinc-400">Distribuição de Valores</h3>
+        <h3 className="text-xs font-bbh uppercase tracking-widest text-zinc-400">Distribuicao de Valores</h3>
         
         <div className="space-y-6">
           <div className="flex justify-between items-baseline border-b border-zinc-800 pb-4">
@@ -821,9 +1490,24 @@ function CalculatorTab() {
             <span className="text-3xl font-bbh tracking-widest text-accent">R$ {discountedPrice.toFixed(2)}</span>
           </div>
 
+          <div className="space-y-4 text-[11px] font-mono border-b border-zinc-800 pb-4 mb-4">
+            <div className="flex justify-between text-zinc-500">
+              <span>Setup (Dinâmico):</span>
+              <span>R$ {baseMaterial.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-zinc-500">
+              <span>Mão de obra:</span>
+              <span>R$ {(hours * 40).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-zinc-500">
+              <span>Cartuchos:</span>
+              <span>R$ {cartridgesCost.toFixed(2)}</span>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <div className="flex justify-between items-center text-sm">
-              <span className="text-[10px] uppercase tracking-widest font-mono text-zinc-400">Kaio (30%)</span>
+              <span className="text-[10px] uppercase tracking-widest font-mono text-zinc-400">Sua Parte (30%)</span>
               <span className="font-bold">R$ {artistCut.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
@@ -838,7 +1522,7 @@ function CalculatorTab() {
 
           <div className="pt-8 space-y-2">
             <p className="text-[9px] text-zinc-500 uppercase font-mono leading-relaxed">
-              * Base material: R$ 40,00 | Hora: R$ 40,00 | Cartucho: R$ 11,00/un.
+              * Setup Base calculado em tempo real com base nos seus preços de estoque.
             </p>
           </div>
         </div>
@@ -848,14 +1532,614 @@ function CalculatorTab() {
 }
 
 function FlashesTab() {
+  const [flashes, setFlashes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isNewFlashModalOpen, setIsNewFlashModalOpen] = useState(false);
+  const [isEditFlashModalOpen, setIsEditFlashModalOpen] = useState(false);
+  const [isDoneModalOpen, setIsDoneModalOpen] = useState(false);
+  const [isHealedModalOpen, setIsHealedModalOpen] = useState(false);
+  
+  const [selectedFlash, setSelectedFlash] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Form states
+  const [newFlashData, setNewFlashData] = useState({
+    title: "",
+    style: "Blackwork",
+    size: "",
+    value: "",
+    recommended_body_part: "",
+    image: null as File | null
+  });
+
+  const [editFlashData, setEditFlashData] = useState({
+    title: "",
+    style: "",
+    size: "",
+    value: "",
+    recommended_body_part: ""
+  });
+
+  const [doneData, setDoneData] = useState({
+    done_date: new Date(),
+    image_fresh: null as File | null
+  });
+
+  const [healedData, setHealedData] = useState({
+    healed_time: "",
+    image_healed: null as File | null
+  });
+
+  useEffect(() => {
+    fetchFlashes();
+  }, []);
+
+  const fetchFlashes = async () => {
+    const { data, error } = await supabase.from('flashes').select('*').order('created_at', { ascending: false });
+    if (error) toast.error("Erro ao carregar flashes.");
+    else setFlashes(data || []);
+    setLoading(false);
+  };
+
+  const uploadImage = async (file: File, bucket: string = 'references') => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${crypto.randomUUID()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file);
+    if (uploadError) throw uploadError;
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
+    return publicUrl;
+  };
+
+  const handleCreateFlash = async () => {
+    if (!newFlashData.title || !newFlashData.image) {
+      toast.error("Título e imagem são obrigatórios.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = await uploadImage(newFlashData.image);
+      const { error } = await supabase.from('flashes').insert([{
+        title: newFlashData.title,
+        style: newFlashData.style,
+        size: newFlashData.size,
+        value: Number(newFlashData.value),
+        recommended_body_part: newFlashData.recommended_body_part,
+        img_url: url,
+        available: true
+      }]);
+      if (error) throw error;
+      toast.success("Flash adicionado!");
+      setIsNewFlashModalOpen(false);
+      setNewFlashData({ title: "", style: "Blackwork", size: "", value: "", recommended_body_part: "", image: null });
+      fetchFlashes();
+    } catch (e: any) {
+      toast.error("Erro: " + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleEditFlash = async () => {
+    if (!editFlashData.title) {
+      toast.error("Título é obrigatório.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const { error } = await supabase.from('flashes').update({
+        title: editFlashData.title,
+        style: editFlashData.style,
+        size: editFlashData.size,
+        value: Number(editFlashData.value),
+        recommended_body_part: editFlashData.recommended_body_part
+      }).eq('id', selectedFlash.id);
+      
+      if (error) throw error;
+      toast.success("Informações atualizadas!");
+      setIsEditFlashModalOpen(false);
+      fetchFlashes();
+    } catch (e: any) {
+      toast.error("Erro: " + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleMarkAsDone = async () => {
+    if (!doneData.image_fresh || !doneData.done_date) {
+      toast.error("A foto e a data são obrigatórias.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = await uploadImage(doneData.image_fresh);
+      const formattedDate = format(doneData.done_date, "MMM yyyy", { locale: ptBR });
+      
+      const { error } = await supabase.from('flashes').update({
+        available: false,
+        img_fresh: url,
+        done_date: formattedDate
+      }).eq('id', selectedFlash.id);
+
+      if (error) throw error;
+      toast.success("Tattoo marcada como feita!");
+      setIsDoneModalOpen(false);
+      fetchFlashes();
+    } catch (e: any) {
+      toast.error("Erro: " + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleAddHealed = async () => {
+    if (!healedData.image_healed) {
+      toast.error("A foto cicatrizada é obrigatória.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = await uploadImage(healedData.image_healed);
+      const { error } = await supabase.from('flashes').update({
+        img_healed: url,
+        healed_time: healedData.healed_time
+      }).eq('id', selectedFlash.id);
+      if (error) throw error;
+      toast.success("Foto cicatrizada adicionada!");
+      setIsHealedModalOpen(false);
+      fetchFlashes();
+    } catch (e: any) {
+      toast.error("Erro: " + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const deleteFlash = async (id: string) => {
+    if (!confirm("Excluir permanentemente este flash/portfólio?")) return;
+    const { error } = await supabase.from('flashes').delete().eq('id', id);
+    if (error) toast.error("Erro ao excluir.");
+    else {
+      toast.success("Removido.");
+      fetchFlashes();
+    }
+  };
+
   return (
-    <div className="p-12 text-center bg-white border border-border border-dashed">
-      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono">Gerenciamento de flashes em desenvolvimento...</p>
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      className="space-y-6"
+    >
+      <div className="flex justify-between items-center">
+        <h3 className="text-xs font-bbh uppercase tracking-widest">Flashes & Portfolio</h3>
+        <Button size="sm" className="rounded-none text-[10px] uppercase font-bold tracking-widest" onClick={() => setIsNewFlashModalOpen(true)}>
+          <Plus size={16} className="mr-2" /> Novo Flash
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {flashes.map(f => (
+          <div key={f.id} className="bg-white border border-border overflow-hidden flex flex-col group relative">
+            <div className="aspect-[3/4] relative overflow-hidden bg-zinc-100">
+              <img src={f.img_url} alt={f.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+              {!f.available && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4">
+                  <span className="text-[10px] text-white border border-white px-3 py-1 uppercase tracking-[0.2em] font-bold">Tattoo Feita</span>
+                </div>
+              )}
+              {/* Quick Edit Button */}
+              <button 
+                onClick={() => {
+                  setSelectedFlash(f);
+                  setEditFlashData({
+                    title: f.title,
+                    style: f.style,
+                    size: f.size,
+                    value: String(f.value),
+                    recommended_body_part: f.recommended_body_part
+                  });
+                  setIsEditFlashModalOpen(true);
+                }}
+                className="absolute top-2 left-2 bg-white/80 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm"
+              >
+                <Pencil size={14} className="text-black" />
+              </button>
+            </div>
+            <div className="p-4 flex-1 flex flex-col">
+              <h4 className="text-[11px] font-bold uppercase truncate">{f.title}</h4>
+              <p className="text-[9px] text-muted-foreground uppercase font-mono mt-1">{f.style} • {f.size}</p>
+              
+              <div className="mt-auto pt-4 flex gap-2">
+                {f.available ? (
+                  <Button variant="outline" size="sm" className="flex-1 rounded-none text-[9px] uppercase font-bold" onClick={() => { setSelectedFlash(f); setIsDoneModalOpen(true); }}>
+                    Marcar Feita
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" className="flex-1 rounded-none text-[9px] uppercase font-bold" onClick={() => { setSelectedFlash(f); setIsHealedModalOpen(true); }}>
+                    {f.img_healed ? "Edit Cicatriz" : "+ Cicatrizada"}
+                  </Button>
+                )}
+                <button onClick={() => deleteFlash(f.id)} className="p-2 text-zinc-400 hover:text-red-500 transition-colors">
+                  <Trash size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* New Flash Modal */}
+      <AnimatePresence>
+        {isNewFlashModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 max-w-md w-full space-y-6 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">Novo Flash Disponivel</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Título do Flash</Label>
+                  <input value={newFlashData.title} onChange={e => setNewFlashData(p => ({ ...p, title: e.target.value }))} className="w-full border p-3 text-sm outline-none" placeholder="Ex: Garça Imperial" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-mono">Tamanho (cm)</Label>
+                    <input value={newFlashData.size} onChange={e => setNewFlashData(p => ({ ...p, size: e.target.value }))} className="w-full border p-3 text-sm outline-none" placeholder="15cm" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-mono">Valor (R$)</Label>
+                    <input type="number" value={newFlashData.value} onChange={e => setNewFlashData(p => ({ ...p, value: e.target.value }))} className="w-full border p-3 text-sm outline-none" placeholder="250" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Estilo</Label>
+                  <input value={newFlashData.style} onChange={e => setNewFlashData(p => ({ ...p, style: e.target.value }))} className="w-full border p-3 text-sm outline-none" placeholder="Blackwork / Oldschool" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Locais Recomendados</Label>
+                  <input value={newFlashData.recommended_body_part} onChange={e => setNewFlashData(p => ({ ...p, recommended_body_part: e.target.value }))} className="w-full border p-3 text-sm outline-none" placeholder="Panturrilha - Braço" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Desenho do Flash</Label>
+                  <input type="file" accept="image/*" onChange={e => setNewFlashData(p => ({ ...p, image: e.target.files?.[0] || null }))} className="w-full text-xs font-mono" />
+                </div>
+                <div className="pt-4 flex gap-3">
+                  <Button variant="outline" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsNewFlashModalOpen(false)}>Sair</Button>
+                  <Button className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={handleCreateFlash} disabled={uploading}>{uploading ? "Fazendo Upload..." : "Publicar Flash"}</Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Flash Modal */}
+      <AnimatePresence>
+        {isEditFlashModalOpen && selectedFlash && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 max-w-md w-full space-y-6 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">Editar Flash / Trabalho</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Título</Label>
+                  <input value={editFlashData.title} onChange={e => setEditFlashData(p => ({ ...p, title: e.target.value }))} className="w-full border p-3 text-sm outline-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-mono">Tamanho</Label>
+                    <input value={editFlashData.size} onChange={e => setEditFlashData(p => ({ ...p, size: e.target.value }))} className="w-full border p-3 text-sm outline-none" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-mono">Valor (R$)</Label>
+                    <input type="number" value={editFlashData.value} onChange={e => setEditFlashData(p => ({ ...p, value: e.target.value }))} className="w-full border p-3 text-sm outline-none" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Estilo</Label>
+                  <input value={editFlashData.style} onChange={e => setEditFlashData(p => ({ ...p, style: e.target.value }))} className="w-full border p-3 text-sm outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Locais</Label>
+                  <input value={editFlashData.recommended_body_part} onChange={e => setEditFlashData(p => ({ ...p, recommended_body_part: e.target.value }))} className="w-full border p-3 text-sm outline-none" />
+                </div>
+                <div className="pt-4 flex gap-3">
+                  <Button variant="outline" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsEditFlashModalOpen(false)}>Cancelar</Button>
+                  <Button className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={handleEditFlash} disabled={uploading}>Salvar Alterações</Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Mark as Done Modal */}
+      <AnimatePresence>
+        {isDoneModalOpen && selectedFlash && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 max-w-sm w-full space-y-6">
+              <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">Concluir Tattoo</h3>
+              <div className="space-y-4">
+                <div className="space-y-2 flex flex-col">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Data de Realização</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full h-12 justify-start text-left font-normal rounded-none border-border",
+                          !doneData.done_date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {doneData.done_date ? format(doneData.done_date, "PPP", { locale: ptBR }) : <span>Escolha a data</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-[110]" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={doneData.done_date}
+                        onSelect={(date) => setDoneData(p => ({ ...p, done_date: date || new Date() }))}
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Foto da Tattoo Feita (Fresh)</Label>
+                  <input type="file" accept="image/*" onChange={e => setDoneData(p => ({ ...p, image_fresh: e.target.files?.[0] || null }))} className="w-full text-xs font-mono" />
+                </div>
+                <div className="pt-4 flex gap-3">
+                  <Button variant="outline" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsDoneModalOpen(false)}>Sair</Button>
+                  <Button className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={handleMarkAsDone} disabled={uploading}>{uploading ? "Salvando..." : "Confirmar Conclusão"}</Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Healed Modal */}
+      <AnimatePresence>
+        {isHealedModalOpen && selectedFlash && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 max-w-sm w-full space-y-6">
+              <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">Foto Cicatrizada</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Tempo de Cicatriz (ex: 3 meses)</Label>
+                  <input value={healedData.healed_time} onChange={e => setHealedData(p => ({ ...p, healed_time: e.target.value }))} className="w-full border p-3 text-sm outline-none" placeholder="Ex: 6 meses" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Upload Foto Cicatrizada</Label>
+                  <input type="file" accept="image/*" onChange={e => setHealedData(p => ({ ...p, image_healed: e.target.files?.[0] || null }))} className="w-full text-xs font-mono" />
+                </div>
+                <div className="pt-4 flex gap-3">
+                  <Button variant="outline" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsHealedModalOpen(false)}>Sair</Button>
+                  <Button className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={handleAddHealed} disabled={uploading}>{uploading ? "Enviando..." : "Salvar Foto"}</Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
-// Utility
-function cn(...inputs: any) {
-  return inputs.filter(Boolean).join(" ");
+function PromotionsTab() {
+  const [promotions, setPromotions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [formData, setFormData] = useState({
+    id: "",
+    title: "",
+    description: "",
+    discount_percentage: "0",
+    active: false
+  });
+
+  useEffect(() => {
+    fetchPromotions();
+  }, []);
+
+  const fetchPromotions = async () => {
+    const { data, error } = await supabase
+      .from('promotions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if (error.code !== '42P01') {
+        toast.error("Erro ao carregar promoções.");
+      }
+    } else {
+      setPromotions(data || []);
+    }
+    setLoading(false);
+  };
+
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    if (!currentStatus) {
+      await supabase.from('promotions').update({ active: false }).neq('id', id);
+    }
+
+    const { error } = await supabase
+      .from('promotions')
+      .update({ active: !currentStatus })
+      .eq('id', id);
+
+    if (error) toast.error("Erro ao atualizar status.");
+    else {
+      toast.success("Status atualizado!");
+      fetchPromotions();
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const payload = {
+      title: formData.title,
+      description: formData.description,
+      discount_percentage: Number(formData.discount_percentage),
+      active: formData.active
+    };
+
+    let error;
+    if (formData.id) {
+      const { error: err } = await supabase.from('promotions').update(payload).eq('id', formData.id);
+      error = err;
+    } else {
+      const { error: err } = await supabase.from('promotions').insert([payload]);
+      error = err;
+    }
+
+    if (error) toast.error("Erro ao salvar promoção.");
+    else {
+      toast.success("Promoção salva!");
+      setIsModalOpen(false);
+      setFormData({ id: "", title: "", description: "", discount_percentage: "0", active: false });
+      fetchPromotions();
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir esta promoção?")) return;
+    const { error } = await supabase.from('promotions').delete().eq('id', id);
+    if (error) toast.error("Erro ao excluir.");
+    else {
+      toast.success("Excluída.");
+      fetchPromotions();
+    }
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      className="space-y-6"
+    >
+      <div className="flex justify-between items-center">
+        <h3 className="text-xs font-bbh uppercase tracking-widest">Promocoes Globais</h3>
+        <Button 
+          size="sm" 
+          className="rounded-none text-[10px] uppercase font-bold tracking-widest"
+          onClick={() => {
+            setFormData({ id: "", title: "", description: "", discount_percentage: "0", active: false });
+            setIsModalOpen(true);
+          }}
+        >
+          <Plus size={16} className="mr-2" /> Nova Promoção
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {promotions.map(p => (
+          <div key={p.id} className={cn(
+            "bg-white border p-6 space-y-4 relative group transition-all",
+            p.active ? "border-black ring-1 ring-black shadow-lg" : "border-border opacity-70"
+          )}>
+            <div className="flex justify-between items-start">
+              <div>
+                <h4 className="text-sm font-bbh uppercase tracking-widest">{p.title}</h4>
+                <p className="text-[10px] text-muted-foreground uppercase font-mono mt-1">{p.discount_percentage}% OFF</p>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <span className={cn(
+                  "text-[8px] uppercase font-bold px-2 py-1",
+                  p.active ? "bg-black text-white" : "bg-zinc-100 text-zinc-400"
+                )}>
+                  {p.active ? "Ativa" : "Inativa"}
+                </span>
+              </div>
+            </div>
+            
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {p.description}
+            </p>
+
+            <div className="pt-4 border-t flex justify-between items-center">
+              <button 
+                onClick={() => handleToggleActive(p.id, p.active)}
+                className="text-[10px] font-bold uppercase hover:underline"
+              >
+                {p.active ? "Desativar" : "Ativar no Site"}
+              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    setFormData({
+                      id: p.id,
+                      title: p.title,
+                      description: p.description,
+                      discount_percentage: String(p.discount_percentage),
+                      active: p.active
+                    });
+                    setIsModalOpen(true);
+                  }}
+                  className="p-1.5 hover:bg-zinc-100 rounded text-zinc-400 hover:text-black"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button onClick={() => handleDelete(p.id)} className="p-1.5 hover:bg-red-50 rounded text-zinc-400 hover:text-red-500">
+                  <Trash size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Promotion Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 max-w-md w-full space-y-6">
+              <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">
+                {formData.id ? "Editar Promoção" : "Nova Promoção"}
+              </h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Título do Evento</Label>
+                  <input 
+                    value={formData.title} 
+                    onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none" 
+                    placeholder="Ex: Dia das Mães" 
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Descrição / Texto do Banner</Label>
+                  <textarea 
+                    value={formData.description} 
+                    onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none resize-none" 
+                    rows={3}
+                    placeholder="Ex: Todas as artes selecionadas com 20% de desconto!" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Desconto (%)</Label>
+                  <input 
+                    type="number"
+                    value={formData.discount_percentage} 
+                    onChange={e => setFormData(p => ({ ...p, discount_percentage: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none" 
+                  />
+                </div>
+                <div className="pt-4 flex gap-3">
+                  <Button variant="outline" type="button" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                  <Button type="submit" className="flex-1 rounded-none text-[10px] uppercase font-bold" disabled={isSubmitting}>
+                    {isSubmitting ? "Salvando..." : "Salvar"}
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
 }

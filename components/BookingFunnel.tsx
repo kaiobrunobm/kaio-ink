@@ -11,7 +11,6 @@ import {
   CheckIcon
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { portfolioItems, bookedDates } from "@/lib/data";
 import { motion, AnimatePresence } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
@@ -35,7 +34,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
-import { v4 as uuidv4 } from 'uuid';
 
 interface BookingFunnelProps {
   isOpen: boolean;
@@ -87,11 +85,16 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [dynamicBookedDates, setDynamicBookedDates] = useState<Record<string, ("Manhã" | "Noite")[]>>({});
+  const [dynamicBookedFlashes, setDynamicBookedFlashes] = useState<string[]>([]);
+  const [flashes, setFlashes] = useState<any[]>([]);
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
       // Generate a unique booking code when the modal opens
       setBookingCode(`#INK-${Math.floor(Math.random() * 9000) + 1000}`);
+      fetchAvailability();
     } else {
       document.body.style.overflow = "unset";
     }
@@ -99,6 +102,38 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
       document.body.style.overflow = "unset";
     };
   }, [isOpen]);
+
+  const fetchAvailability = async () => {
+    // Fetch all flashes to show names and filter availability
+    const { data: allFlashes } = await supabase.from('flashes').select('*');
+    if (allFlashes) setFlashes(allFlashes);
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('sessao_data, sessao_periodo, flash_selecionado')
+      .in('status', ['confirmado', 'concluido']);
+
+    if (error) {
+      console.error("Erro ao carregar disponibilidade:", error);
+      return;
+    }
+
+    const datesMap: Record<string, ("Manhã" | "Noite")[]> = {};
+    const flashesSet = new Set<string>();
+
+    data.forEach(b => {
+      if (b.sessao_data && b.sessao_periodo) {
+        if (!datesMap[b.sessao_data]) datesMap[b.sessao_data] = [];
+        datesMap[b.sessao_data].push(b.sessao_periodo as any);
+      }
+      if (b.flash_selecionado) {
+        b.flash_selecionado.forEach((id: string) => flashesSet.add(id));
+      }
+    });
+
+    setDynamicBookedDates(datesMap);
+    setDynamicBookedFlashes(Array.from(flashesSet));
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -187,7 +222,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
     
     let tattooDetail = "";
     if (formData.tipoTattoo === "Flash Disponível") {
-      const selectedFlashes = portfolioItems.filter(f => formData.flashSelecionado.includes(String(f.id)));
+      const selectedFlashes = flashes.filter(f => formData.flashSelecionado.includes(String(f.id)));
       const flashTitles = selectedFlashes.map(f => f.title).join(", ");
       tattooDetail = `Flashes Selecionados: ${flashTitles || "Nenhum"}\n *Nota:* Desenhos flash não estão sujeitos a alterações e possuem valor fixo.`;
     } else {
@@ -232,7 +267,7 @@ Protocolo: *${bookingCode}*
       // Upload reference image if it exists
       if (formData.referenciaImagem) {
         const fileExt = formData.referenciaImagem.name.split('.').pop();
-        const fileName = `${uuidv4()}.${fileExt}`;
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `${fileName}`;
 
         const { error: uploadError } = await supabase.storage
@@ -284,7 +319,14 @@ Protocolo: *${bookingCode}*
     }
   };
 
-  const availableFlashes = portfolioItems.filter(item => item.available);
+  const availableFlashes = flashes
+    .filter(item => item.available && !dynamicBookedFlashes.includes(String(item.id)))
+    .map(f => ({
+      id: f.id,
+      title: f.title,
+      img: f.img_url,
+      available: f.available
+    }));
 
   return (
     <AnimatePresence mode="wait">
@@ -547,7 +589,7 @@ Protocolo: *${bookingCode}*
                               {formData.sessao_data ? format(formData.sessao_data, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
+                          <PopoverContent className="w-auto p-0 z-[110]" align="start">
                             <Calendar
                               mode="single"
                               selected={formData.sessao_data}
@@ -561,17 +603,29 @@ Protocolo: *${bookingCode}*
                               }}
                               disabled={(date) => {
                                 const dateStr = format(date, "yyyy-MM-dd");
-                                const bookedSlots = bookedDates[dateStr] || [];
-                                const isFullyBooked = bookedSlots.length >= 2;
+                                const bookedSlots = dynamicBookedDates[dateStr] || [];
                                 const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
-                                const isSunday = date.getDay() === 0;
-                                return isPast || isSunday || isFullyBooked;
+                                const day = date.getDay();
+                                const isSunday = day === 0;
+                                
+                                // On weekdays (1-5), only "Noite" is available.
+                                // If "Noite" is booked, the date is full.
+                                if (day >= 1 && day <= 5) {
+                                  return isPast || bookedSlots.includes("Noite");
+                                }
+                                
+                                // On Saturdays (6), both are available.
+                                if (day === 6) {
+                                  return isPast || bookedSlots.length >= 2;
+                                }
+
+                                return isPast || isSunday;
                               }}
                               onDayClick={(date) => {
-                                const isSunday = date.getDay() === 0;
+                                const day = date.getDay();
+                                const isSunday = day === 0;
                                 const dateStr = format(date, "yyyy-MM-dd");
-                                const bookedSlots = bookedDates[dateStr] || [];
-                                const isFullyBooked = bookedSlots.length >= 2;
+                                const bookedSlots = dynamicBookedDates[dateStr] || [];
                                 const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
 
                                 if (isSunday) {
@@ -584,7 +638,12 @@ Protocolo: *${bookingCode}*
                                   return;
                                 }
 
-                                if (isFullyBooked) {
+                                if (day >= 1 && day <= 5 && bookedSlots.includes("Noite")) {
+                                  toast.error("Esta data já está reservada.");
+                                  return;
+                                }
+
+                                if (day === 6 && bookedSlots.length >= 2) {
                                   toast.error("Esta data já está totalmente reservada.");
                                 }
                               }}
@@ -607,7 +666,7 @@ Protocolo: *${bookingCode}*
                                 return;
                               }
                               const dateStr = format(formData.sessao_data, "yyyy-MM-dd");
-                              const bookedSlots = bookedDates[dateStr] || [];
+                              const bookedSlots = dynamicBookedDates[dateStr] || [];
                               if (bookedSlots.includes(v as any)) {
                                 toast.error(`O período da ${v.toLowerCase()} já está reservado para esta data.`);
                                 return;
@@ -620,7 +679,7 @@ Protocolo: *${bookingCode}*
                           <ToggleGroupItem 
                             value="Manhã" 
                             disabled={formData.sessao_data ? (
-                              (bookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Manhã") || 
+                              (dynamicBookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Manhã") || 
                               (formData.sessao_data.getDay() >= 1 && formData.sessao_data.getDay() <= 5)
                             ) : false}
                             className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white"
@@ -629,7 +688,7 @@ Protocolo: *${bookingCode}*
                           </ToggleGroupItem>
                           <ToggleGroupItem 
                             value="Noite" 
-                            disabled={formData.sessao_data ? (bookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Noite") : false}
+                            disabled={formData.sessao_data ? (dynamicBookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Noite") : false}
                             className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white"
                           >
                             Noite
@@ -732,7 +791,7 @@ Protocolo: *${bookingCode}*
                     <p><strong className="text-foreground">Cliente:</strong> {formData.nome}</p>
                     <p><strong className="text-foreground">Tipo:</strong> {formData.tipoTattoo}</p>
                     {formData.tipoTattoo === "Flash Disponível" && (
-                      <p><strong className="text-foreground">Flashes:</strong> {portfolioItems.filter(f => formData.flashSelecionado.includes(String(f.id))).map(f => f.title).join(", ")}</p>
+                      <p><strong className="text-foreground">Flashes:</strong> {flashes.filter(f => formData.flashSelecionado.includes(String(f.id))).map(f => f.title).join(", ")}</p>
                     )}
                     <p><strong className="text-foreground">Data:</strong> {formData.sessao_data && format(formData.sessao_data, "dd/MM/yyyy")} de {formData.sessao_periodo}</p>
                     <p><strong className="text-foreground">Pagamento:</strong> {formData.formaPagamento} {formData.formaPagamento === "Cartão de Crédito" && `(${formData.bandeiraCartao} ${formData.parcelasCredito}x)`}</p>
