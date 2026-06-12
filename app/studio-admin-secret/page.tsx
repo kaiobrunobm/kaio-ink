@@ -375,7 +375,7 @@ function OverviewTab() {
               <Tooltip 
                 cursor={{ fill: '#f4f4f5' }}
                 contentStyle={{ border: '1px solid #e4e4e7', borderRadius: '0', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase' }}
-                formatter={(value: number, name: string) => [`R$ ${value.toFixed(2)}`, name]}
+                formatter={(value: any, name: string) => [`R$ ${Number(value || 0).toFixed(2)}`, name]}
               />
               <Bar dataKey="Faturamento" fill="#000" radius={[2, 2, 0, 0]} barSize={40} />
               <Bar dataKey="Despesas" fill="#ef4444" radius={[2, 2, 0, 0]} barSize={40} />
