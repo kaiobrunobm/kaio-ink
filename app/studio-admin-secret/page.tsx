@@ -375,7 +375,7 @@ function OverviewTab() {
               <Tooltip 
                 cursor={{ fill: '#f4f4f5' }}
                 contentStyle={{ border: '1px solid #e4e4e7', borderRadius: '0', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase' }}
-                formatter={(value: any, name: string) => [`R$ ${Number(value || 0).toFixed(2)}`, name]}
+                formatter={(value: any, name: any) => [`R$ ${Number(value || 0).toFixed(2)}`, name]}
               />
               <Bar dataKey="Faturamento" fill="#000" radius={[2, 2, 0, 0]} barSize={40} />
               <Bar dataKey="Despesas" fill="#ef4444" radius={[2, 2, 0, 0]} barSize={40} />
@@ -517,6 +517,9 @@ function BookingsTab() {
   };
 
   const handleConfirmBooking = async () => {
+    const booking = selectedBooking;
+    if (!booking) return;
+
     if (!agreedPrice || !sinalAmount) {
       toast.error("Preencha os valores acordados.");
       return;
@@ -529,14 +532,14 @@ function BookingsTab() {
         agreed_price: Number(agreedPrice),
         sinal_amount: Number(sinalAmount)
       })
-      .eq('id', selectedBooking.id);
+      .eq('id', booking.id);
 
     if (error) {
       toast.error("Erro ao confirmar agendamento.");
     } else {
       // If it's a Flash booking, mark the flashes as unavailable
-      if (selectedBooking.tipo_tattoo === "Flash Disponível" && selectedBooking.flash_selecionado) {
-        for (const flashId of selectedBooking.flash_selecionado) {
+      if (booking.tipo_tattoo === "Flash Disponível" && booking.flash_selecionado) {
+        for (const flashId of booking.flash_selecionado) {
           await supabase.from('flashes').update({ available: false }).eq('id', flashId);
         }
       }
@@ -547,21 +550,24 @@ function BookingsTab() {
   };
 
   const handleCancelBooking = async (keepSinal: boolean) => {
-    if (keepSinal && selectedBooking.sinal_amount > 0) {
+    const booking = selectedBooking;
+    if (!booking) return;
+
+    if (keepSinal && (booking.sinal_amount ?? 0) > 0) {
       // Log the sinal as income (100% since it's non-refundable)
       await supabase.from('financial_records').insert({
         type: 'income',
-        amount: selectedBooking.sinal_amount,
-        description: `Sinal retido (Cancelamento): ${selectedBooking.nome} - Ref: ${selectedBooking.id}`,
+        amount: booking.sinal_amount,
+        description: `Sinal retido (Cancelamento): ${booking.nome} - Ref: ${booking.id}`,
         category: 'booking_studio_cut',
-        created_at: `${selectedBooking.sessao_data}T12:00:00Z`
+        created_at: `${booking.sessao_data}T12:00:00Z`
       });
     }
 
     const { error } = await supabase
       .from('bookings')
       .update({ status: 'cancelado' })
-      .eq('id', selectedBooking.id);
+      .eq('id', booking.id);
 
     if (error) {
       toast.error("Erro ao cancelar agendamento.");
@@ -573,7 +579,8 @@ function BookingsTab() {
   };
 
   const handleReschedule = async () => {
-    if (!selectedBooking || !newDate || newSessions.length === 0) {
+    const booking = selectedBooking;
+    if (!booking || !newDate || newSessions.length === 0) {
       toast.error("Selecione a data e pelo menos uma sessão.");
       return;
     }
@@ -587,7 +594,7 @@ function BookingsTab() {
         sessao_data: dateStr, 
         sessao_periodo: sessionsStr
       })
-      .eq('id', selectedBooking.id);
+      .eq('id', booking.id);
 
     if (error) {
       console.error("Supabase Error details:", error);
@@ -600,6 +607,9 @@ function BookingsTab() {
   };
 
   const handleCompleteSubmit = async () => {
+    const booking = selectedBooking;
+    if (!booking) return;
+
     if (!finalChargedPrice) {
       toast.error("Informe o preço cobrado.");
       return;
@@ -623,13 +633,13 @@ function BookingsTab() {
     await supabase.from('financial_records').insert({
       type: 'income',
       amount: studioCut,
-      description: `Booking concluído: ${selectedBooking.nome} (Total: R$ ${total}) - Ref: ${selectedBooking.id}`,
+      description: `Booking concluído: ${booking.nome} (Total: R$ ${total}) - Ref: ${booking.id}`,
       category: 'booking_studio_cut',
-      created_at: `${selectedBooking.sessao_data}T12:00:00Z`
+      created_at: `${booking.sessao_data}T12:00:00Z`
     });
 
     // 3. Update status
-    const { error } = await supabase.from('bookings').update({ status: 'concluido' }).eq('id', selectedBooking.id);
+    const { error } = await supabase.from('bookings').update({ status: 'concluido' }).eq('id', booking.id);
     
     if (error) {
       toast.error("Erro ao concluir.");
@@ -950,7 +960,7 @@ function BookingsTab() {
               <Button 
                 size="sm" variant="outline" className="flex-1 rounded-none text-[9px] uppercase"
                 onClick={() => {
-                  setEventData({ id: "", type: "block", title: "Folga / Fechado", discount_percentage: "" });
+                  setEventData({ id: "", type: "block", title: "Folga / Fechado", discount_percentage: "", end_date: undefined });
                   setIsEventModalOpen(true);
                 }}
               >
@@ -959,7 +969,7 @@ function BookingsTab() {
               <Button 
                 size="sm" variant="outline" className="flex-1 rounded-none text-[9px] uppercase"
                 onClick={() => {
-                  setEventData({ id: "", type: "promotion", title: "", discount_percentage: "10" });
+                  setEventData({ id: "", type: "promotion", title: "", discount_percentage: "10", end_date: undefined });
                   setIsEventModalOpen(true);
                 }}
               >
@@ -1582,7 +1592,10 @@ function InventoryTab() {
   };
 
   const handleEditItem = async () => {
-    if (!editingItem.item_name) {
+    const item = editingItem;
+    if (!item) return;
+
+    if (!item.item_name) {
       toast.error("Preencha os campos obrigatórios.");
       return;
     }
@@ -1590,13 +1603,13 @@ function InventoryTab() {
     const { error } = await supabase
       .from('inventory')
       .update({
-        item_name: editingItem.item_name,
-        category: editingItem.category,
-        min_quantity: Number(editingItem.min_quantity),
-        cost_per_unit: Number(editingItem.cost_per_unit),
-        unit: editingItem.unit
+        item_name: item.item_name,
+        category: item.category,
+        min_quantity: Number(item.min_quantity),
+        cost_per_unit: Number(item.cost_per_unit),
+        unit: item.unit
       })
-      .eq('id', editingItem.id);
+      .eq('id', item.id);
 
     if (error) {
       toast.error("Erro ao atualizar item.");
@@ -2227,6 +2240,9 @@ function FlashesTab() {
   };
 
   const handleEditFlash = async () => {
+    const flash = selectedFlash;
+    if (!flash) return;
+
     if (!editFlashData.title) {
       toast.error("Título é obrigatório.");
       return;
@@ -2239,7 +2255,7 @@ function FlashesTab() {
         size: editFlashData.size,
         value: Number(editFlashData.value),
         recommended_body_part: editFlashData.recommended_body_part
-      }).eq('id', selectedFlash.id);
+      }).eq('id', flash.id);
       
       if (error) throw error;
       toast.success("Informações atualizadas!");
@@ -2253,6 +2269,9 @@ function FlashesTab() {
   };
 
   const handleMarkAsDone = async () => {
+    const flash = selectedFlash;
+    if (!flash) return;
+
     if (!doneData.image_fresh || !doneData.done_date) {
       toast.error("A foto e a data são obrigatórias.");
       return;
@@ -2261,12 +2280,12 @@ function FlashesTab() {
     try {
       const url = await uploadImage(doneData.image_fresh);
       const formattedDate = format(doneData.done_date, "MMM yyyy", { locale: ptBR });
-      
+
       const { error } = await supabase.from('flashes').update({
         available: false,
         img_fresh: url,
         done_date: formattedDate
-      }).eq('id', selectedFlash.id);
+      }).eq('id', flash.id);
 
       if (error) throw error;
       toast.success("Tattoo marcada como feita!");
@@ -2280,6 +2299,9 @@ function FlashesTab() {
   };
 
   const handleAddHealed = async () => {
+    const flash = selectedFlash;
+    if (!flash) return;
+
     if (!healedData.image_healed) {
       toast.error("A foto cicatrizada é obrigatória.");
       return;
@@ -2290,7 +2312,7 @@ function FlashesTab() {
       const { error } = await supabase.from('flashes').update({
         img_healed: url,
         healed_time: healedData.healed_time
-      }).eq('id', selectedFlash.id);
+      }).eq('id', flash.id);
       if (error) throw error;
       toast.success("Foto cicatrizada adicionada!");
       setIsHealedModalOpen(false);

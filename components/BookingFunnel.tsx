@@ -44,6 +44,7 @@ interface Flash {
   size: string;
   value: number;
   img_url: string;
+  available: boolean;
 }
 
 interface CalendarEvent {
