@@ -35,6 +35,26 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 
+// --- Interfaces ---
+
+interface Flash {
+  id: string;
+  title: string;
+  style: string;
+  size: string;
+  value: number;
+  img_url: string;
+}
+
+interface CalendarEvent {
+  id: string;
+  date: string;
+  end_date: string;
+  type: 'block' | 'promotion';
+  title: string;
+  discount_percentage?: number;
+}
+
 interface BookingFunnelProps {
   isOpen: boolean;
   onClose: () => void;
@@ -47,7 +67,7 @@ interface FormData {
   tipoTattoo: "Flash Disponível" | "Projeto Autoral Personalizado" | "";
   flashSelecionado: string[];
   ideia: string;
-  referenciaImagem: File | null;
+  referenciaImagens: File[];
   sessao_data: Date | undefined;
   sessao_periodo: "Manhã" | "Noite" | "";
   formaPagamento: "Pix" | "Dinheiro" | "Cartão de Débito" | "Cartão de Crédito" | "";
@@ -65,7 +85,7 @@ const initialFormData: FormData = {
   tipoTattoo: "",
   flashSelecionado: [],
   ideia: "",
-  referenciaImagem: null,
+  referenciaImagens: [],
   sessao_data: undefined,
   sessao_periodo: "",
   formaPagamento: "",
@@ -87,32 +107,23 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
 
   const [dynamicBookedDates, setDynamicBookedDates] = useState<Record<string, ("Manhã" | "Noite")[]>>({});
   const [dynamicBookedFlashes, setDynamicBookedFlashes] = useState<string[]>([]);
-  const [flashes, setFlashes] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      // Generate a unique booking code when the modal opens
-      setBookingCode(`#INK-${Math.floor(Math.random() * 9000) + 1000}`);
-      fetchAvailability();
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [flashes, setFlashes] = useState<Flash[]>([]);
 
   const fetchAvailability = async () => {
     // 1. Fetch all flashes to show names and filter availability
     const { data: allFlashes } = await supabase.from('flashes').select('*');
     if (allFlashes) setFlashes(allFlashes);
 
-    // 2. Fetch all bookings that should block the calendar/art
+    // 2. Fetch calendar events (blocks and promotions)
+    const { data: events } = await supabase.from('calendar_events').select('*');
+    if (events) setCalendarEvents(events);
+
+    // 3. Fetch all bookings that should block the calendar/art
     const { data: activeBookings, error } = await supabase
       .from('bookings')
       .select('sessao_data, sessao_periodo, flash_selecionado')
-      .in('status', ['confirmado', 'concluido']);
+      .in('status', ['confirmado', 'concluido', 'remarcado']);
 
     if (error) {
       console.error("Erro ao carregar disponibilidade:", error);
@@ -122,12 +133,12 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
     const datesMap: Record<string, ("Manhã" | "Noite")[]> = {};
     const flashesSet = new Set<string>();
 
-    activeBookings.forEach(b => {
+    activeBookings?.forEach(b => {
       // Normalize date string (e.g., "2026-06-10") to avoid timezone issues
       if (b.sessao_data && b.sessao_periodo) {
         const rawDate = b.sessao_data.split('T')[0]; // Ensure it's just YYYY-MM-DD
         if (!datesMap[rawDate]) datesMap[rawDate] = [];
-        datesMap[rawDate].push(b.sessao_periodo as any);
+        datesMap[rawDate].push(b.sessao_periodo as "Manhã" | "Noite");
       }
 
       // Robustly parse JSON array from Supabase
@@ -147,6 +158,23 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
     setDynamicBookedDates(datesMap);
     setDynamicBookedFlashes(Array.from(flashesSet));
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      // Generate a unique booking code if not already set
+      setTimeout(() => {
+        setBookingCode(prev => prev || `#INK-${Math.floor(Math.random() * 9000) + 1000}`);
+      }, 0);
+      fetchAvailability();
+    } else {
+      document.body.style.overflow = "unset";
+      setBookingCode(""); // Reset for next time
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -218,7 +246,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
         return;
       }
     }
-    setStep(prev => (prev + 1) as any);
+    setStep(prev => (prev + 1) as 1 | 2 | 3 | 4 | 5);
   };
 
   const prevStep = () => {
@@ -226,7 +254,7 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
-    setStep(prev => (prev - 1) as any);
+    setStep(prev => (prev - 1) as 1 | 2 | 3 | 4 | 5);
   };
 
   const formatWhatsAppMessage = () => {
@@ -275,17 +303,17 @@ Protocolo: *${bookingCode}*
     setIsSubmitting(true);
 
     try {
-      let imageUrl = null;
+      const imageUrls: string[] = [];
 
-      // Upload reference image if it exists
-      if (formData.referenciaImagem) {
-        const fileExt = formData.referenciaImagem.name.split('.').pop();
+      // Upload reference images
+      for (const file of formData.referenciaImagens) {
+        const fileExt = file.name.split('.').pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('references')
-          .upload(filePath, formData.referenciaImagem);
+          .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
@@ -293,7 +321,7 @@ Protocolo: *${bookingCode}*
           .from('references')
           .getPublicUrl(filePath);
 
-        imageUrl = publicUrl;
+        imageUrls.push(publicUrl);
       }
 
       // Insert into bookings table
@@ -306,7 +334,7 @@ Protocolo: *${bookingCode}*
           tipo_tattoo: formData.tipoTattoo,
           flash_selecionado: formData.flashSelecionado,
           ideia: formData.ideia,
-          referencia_imagem_url: imageUrl,
+          referencia_imagem_url: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
           sessao_data: formData.sessao_data ? format(formData.sessao_data, "yyyy-MM-dd") : null,
           sessao_periodo: formData.sessao_periodo,
           forma_pagamento: formData.formaPagamento,
@@ -324,8 +352,8 @@ Protocolo: *${bookingCode}*
       toast.success("Redirecionando para o WhatsApp...");
       window.open(`https://wa.me/5575998002423?text=${encodeURIComponent(formatWhatsAppMessage())}`, "_blank");
 
-    } catch (error: any) {
-      console.error("Error submitting booking:", error);
+    } catch (err: unknown) {
+      console.error("Error submitting booking:", err);
       toast.error("Ocorreu um erro ao enviar seu agendamento. Tente novamente.");
     } finally {
       setIsSubmitting(false);
@@ -542,33 +570,46 @@ Protocolo: *${bookingCode}*
                         </div>
 
                         <div className="space-y-2">
-                          <Label className="text-[10px] uppercase tracking-widest font-mono">Imagem de Referência (Opcional)</Label>
-                          <div className="flex items-center justify-center w-full">
-                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border hover:bg-accent/5 cursor-pointer transition-colors relative overflow-hidden">
-                              {formData.referenciaImagem ? (
-                                <div className="absolute inset-0 p-2">
-                                  <img
-                                    src={URL.createObjectURL(formData.referenciaImagem)}
-                                    alt="Preview"
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                  <FileTextIcon size={24} className="text-muted-foreground mb-2" />
-                                  <p className="text-xs text-muted-foreground">Clique para fazer upload</p>
-                                </div>
-                              )}
-                              <input
-                                type="file"
-                                className="hidden"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) setFormData(p => ({ ...p, referenciaImagem: file }));
-                                }}
-                              />
-                            </label>
+                          <Label className="text-[10px] uppercase tracking-widest font-mono">Imagens de Referência (Opcional - Máx 4)</Label>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {formData.referenciaImagens.map((file, idx) => (
+                              <div key={idx} className="relative aspect-square border border-border overflow-hidden group">
+                                <img
+                                  src={URL.createObjectURL(file)}
+                                  alt={`Preview ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData(p => ({
+                                    ...p,
+                                    referenciaImagens: p.referenciaImagens.filter((_, i) => i !== idx)
+                                  }))}
+                                  className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-none opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <XIcon size={12} />
+                                </button>
+                              </div>
+                            ))}
+                            {formData.referenciaImagens.length < 4 && (
+                              <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-border hover:bg-accent/5 cursor-pointer transition-colors">
+                                <FileTextIcon size={20} className="text-muted-foreground" />
+                                <span className="text-[8px] uppercase font-bold mt-1">Adicionar</span>
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept="image/*"
+                                  multiple
+                                  onChange={(e) => {
+                                    const files = Array.from(e.target.files || []);
+                                    setFormData(p => {
+                                      const newFiles = [...p.referenciaImagens, ...files].slice(0, 4);
+                                      return { ...p, referenciaImagens: newFiles };
+                                    });
+                                  }}
+                                />
+                              </label>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -614,6 +655,69 @@ Protocolo: *${bookingCode}*
                                   document.activeElement.blur();
                                 }
                               }}
+                              modifiers={{
+                                fullyBooked: (date) => {
+                                  const dateStr = format(date, "yyyy-MM-dd");
+                                  if (formData.sessao_data && format(formData.sessao_data, "yyyy-MM-dd") === dateStr) return false;
+                                  
+                                  const bookedSlots = dynamicBookedDates[dateStr] || [];
+                                  const day = date.getDay();
+                                  
+                                  // Weekdays: only night
+                                  if (day >= 1 && day <= 5) return bookedSlots.some(s => s.includes("Noite"));
+                                  
+                                  // Saturdays: both
+                                  if (day === 6) {
+                                    const allPeriods = bookedSlots.join(", ");
+                                    return allPeriods.includes("Manhã") && allPeriods.includes("Noite");
+                                  }
+                                  return false;
+                                },
+                                partiallyBooked: (date) => {
+                                  const dateStr = format(date, "yyyy-MM-dd");
+                                  if (formData.sessao_data && format(formData.sessao_data, "yyyy-MM-dd") === dateStr) return false;
+                                  
+                                  const bookedSlots = dynamicBookedDates[dateStr] || [];
+                                  return date.getDay() === 6 && bookedSlots.length === 1;
+                                },
+                                blocked: (date) => {
+                                  const dateStr = format(date, "yyyy-MM-dd");
+                                  if (formData.sessao_data && format(formData.sessao_data, "yyyy-MM-dd") === dateStr) return false;
+                                  return calendarEvents.some(e => e.type === 'block' && dateStr >= e.date && dateStr <= (e.end_date || e.date));
+                                },
+                                promotion: (date) => {
+                                  const dateStr = format(date, "yyyy-MM-dd");
+                                  if (formData.sessao_data && format(formData.sessao_data, "yyyy-MM-dd") === dateStr) return false;
+                                  return calendarEvents.some(e => e.type === 'promotion' && dateStr >= e.date && dateStr <= (e.end_date || e.date));
+                                }
+                              }}
+                              modifiersStyles={{
+                                fullyBooked: { 
+                                  opacity: 0.5, 
+                                  border: '1px solid #ef4444', 
+                                  backgroundColor: '#fee2e2',
+                                  color: '#b91c1c',
+                                  textDecoration: 'line-through',
+                                  borderRadius: '8px'
+                                },
+                                partiallyBooked: {
+                                  border: '1px solid #f59e0b',
+                                  backgroundColor: '#fef3c7',
+                                  borderRadius: '8px'
+                                },
+                                blocked: {
+                                  opacity: 0.5,
+                                  backgroundColor: '#f4f4f5',
+                                  color: '#71717a',
+                                  borderRadius: '8px'
+                                },
+                                promotion: {
+                                  border: '1px solid #10b981',
+                                  backgroundColor: '#d1fae5',
+                                  fontWeight: 'bold',
+                                  borderRadius: '8px'
+                                }
+                              }}
                               disabled={(date) => {
                                 const dateStr = format(date, "yyyy-MM-dd");
                                 const bookedSlots = dynamicBookedDates[dateStr] || [];
@@ -621,18 +725,22 @@ Protocolo: *${bookingCode}*
                                 const day = date.getDay();
                                 const isSunday = day === 0;
 
+                                // Check for manual blocks from admin (handling ranges)
+                                const isBlocked = calendarEvents.some(e => e.type === 'block' && dateStr >= e.date && dateStr <= (e.end_date || e.date));
+
                                 // On weekdays (1-5), only "Noite" is available.
                                 // If "Noite" is booked, the date is full.
                                 if (day >= 1 && day <= 5) {
-                                  return isPast || bookedSlots.includes("Noite");
+                                  return isPast || isBlocked || bookedSlots.some(s => s.includes("Noite"));
                                 }
 
                                 // On Saturdays (6), both are available.
                                 if (day === 6) {
-                                  return isPast || bookedSlots.length >= 2;
+                                  const allPeriods = bookedSlots.join(", ");
+                                  return isPast || isBlocked || (allPeriods.includes("Manhã") && allPeriods.includes("Noite"));
                                 }
 
-                                return isPast || isSunday;
+                                return isPast || isSunday || isBlocked;
                               }}
                               onDayClick={(date) => {
                                 const day = date.getDay();
@@ -640,6 +748,7 @@ Protocolo: *${bookingCode}*
                                 const dateStr = format(date, "yyyy-MM-dd");
                                 const bookedSlots = dynamicBookedDates[dateStr] || [];
                                 const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+                                const isBlocked = calendarEvents.some(e => e.type === 'block' && dateStr >= e.date && dateStr <= (e.end_date || e.date));
 
                                 if (isSunday) {
                                   toast.error("Não atendemos aos domingos.");
@@ -651,13 +760,21 @@ Protocolo: *${bookingCode}*
                                   return;
                                 }
 
-                                if (day >= 1 && day <= 5 && bookedSlots.includes("Noite")) {
+                                if (isBlocked) {
+                                  toast.error("Esta data está indisponível (Folga/Compromisso).");
+                                  return;
+                                }
+
+                                if (day >= 1 && day <= 5 && bookedSlots.some(s => s.includes("Noite"))) {
                                   toast.error("Esta data já está reservada.");
                                   return;
                                 }
 
-                                if (day === 6 && bookedSlots.length >= 2) {
-                                  toast.error("Esta data já está totalmente reservada.");
+                                if (day === 6) {
+                                  const allPeriods = bookedSlots.join(", ");
+                                  if (allPeriods.includes("Manhã") && allPeriods.includes("Noite")) {
+                                    toast.error("Esta data já está totalmente reservada.");
+                                  }
                                 }
                               }}
                               locale={ptBR}
@@ -672,27 +789,27 @@ Protocolo: *${bookingCode}*
                           type="single"
                           value={formData.sessao_periodo}
                           onValueChange={(v: "Manhã" | "Noite" | "") => {
-                            if (formData.sessao_data) {
-                              const day = formData.sessao_data.getDay();
-                              if (v === "Manhã" && day >= 1 && day <= 5) {
-                                toast.error("Período da manhã disponível apenas aos finais de semana.");
-                                return;
-                              }
-                              const dateStr = format(formData.sessao_data, "yyyy-MM-dd");
-                              const bookedSlots = dynamicBookedDates[dateStr] || [];
-                              if (bookedSlots.includes(v as any)) {
-                                toast.error(`O período da ${v.toLowerCase()} já está reservado para esta data.`);
-                                return;
-                              }
+                          if (formData.sessao_data) {
+                            const day = formData.sessao_data.getDay();
+                            if (v === "Manhã" && day >= 1 && day <= 5) {
+                              toast.error("Período da manhã disponível apenas aos finais de semana.");
+                              return;
                             }
-                            setFormData(p => ({ ...p, sessao_periodo: v }));
+                            const dateStr = format(formData.sessao_data, "yyyy-MM-dd");
+                            const bookedSlots = dynamicBookedDates[dateStr] || [];
+                            if (bookedSlots.includes(v as "Manhã" | "Noite")) {
+                              toast.error(`O período da ${v.toLowerCase()} já está reservado para esta data.`);
+                              return;
+                            }
+                          }
+                          setFormData(p => ({ ...p, sessao_periodo: v }));
                           }}
                           className="justify-start gap-2"
                         >
                           <ToggleGroupItem
                             value="Manhã"
                             disabled={formData.sessao_data ? (
-                              (dynamicBookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Manhã") ||
+                              (dynamicBookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).join(", ").includes("Manhã") ||
                               (formData.sessao_data.getDay() >= 1 && formData.sessao_data.getDay() <= 5)
                             ) : false}
                             className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white"
@@ -701,7 +818,7 @@ Protocolo: *${bookingCode}*
                           </ToggleGroupItem>
                           <ToggleGroupItem
                             value="Noite"
-                            disabled={formData.sessao_data ? (dynamicBookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).includes("Noite") : false}
+                            disabled={formData.sessao_data ? (dynamicBookedDates[format(formData.sessao_data, "yyyy-MM-dd")] || []).join(", ").includes("Noite") : false}
                             className="h-12 border border-border px-6 flex-1 rounded-none data-[state=on]:bg-primary data-[state=on]:text-white"
                           >
                             Noite

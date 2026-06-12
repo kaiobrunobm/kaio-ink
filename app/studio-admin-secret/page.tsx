@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { Session } from "@supabase/supabase-js";
 import { 
   ChartLineUp, 
   Users, 
@@ -39,6 +40,79 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+// --- Interfaces ---
+
+interface Booking {
+  id: string;
+  nome: string;
+  idade: string;
+  whatsapp: string;
+  tipo_tattoo: string;
+  flash_selecionado: string[] | null;
+  ideia: string;
+  referencia_imagem_url: string;
+  sessao_data: string;
+  sessao_periodo: string;
+  forma_pagamento: string;
+  bandeira_cartao: string;
+  parcelas_credito: string;
+  termo_sinal: boolean;
+  termo_anamnese: boolean;
+  termo_menor_idade: boolean;
+  status: 'pendente' | 'confirmado' | 'cancelado' | 'concluido' | 'remarcado';
+  agreed_price?: number;
+  sinal_amount?: number;
+  final_price?: number;
+  session_hours?: number;
+  created_at: string;
+}
+
+interface Flash {
+  id: string;
+  title: string;
+  style: string;
+  size: string;
+  value: number;
+  recommended_body_part: string;
+  img_url: string;
+  available: boolean;
+  img_fresh?: string;
+  img_healed?: string;
+  done_date?: string;
+  healed_time?: string;
+  created_at: string;
+}
+
+interface InventoryItem {
+  id: string;
+  item_name: string;
+  category: string;
+  quantity: number;
+  min_quantity: number;
+  unit: string;
+  cost_per_unit: number;
+  created_at: string;
+}
+
+interface CalendarEvent {
+  id: string;
+  date: string;
+  end_date: string;
+  type: 'block' | 'promotion';
+  title: string;
+  discount_percentage?: number;
+  created_at: string;
+}
+
+interface FinancialRecord {
+  id: string;
+  type: 'income' | 'expense';
+  amount: number;
+  description: string;
+  category: string;
+  created_at: string;
+}
 
 // --- Components ---
 
@@ -107,7 +181,7 @@ const AdminLogin = ({ onLogin }: { onLogin: () => void }) => {
 };
 
 export default function AdminDashboard() {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -175,7 +249,7 @@ export default function AdminDashboard() {
               <TabsTrigger value="calculator" className="data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-6 py-2.5 text-[10px] uppercase tracking-widest font-bold font-mono">
                 <Calculator size={16} className="mr-2" /> Calculadora
               </TabsTrigger>
-              <TabsTrigger value="promotions" className="data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-6 py-2.5 text-[10px] uppercase tracking-widest font-bold font-mono">
+              <TabsTrigger value="promotions" className="data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-6 py-2.5 text-[10px] uppercase tracking-widest font-bold font-mono hidden">
                 <Tag size={16} className="mr-2" /> Promoções
               </TabsTrigger>
             </TabsList>
@@ -197,9 +271,6 @@ export default function AdminDashboard() {
             <TabsContent key="calculator" value="calculator">
               <CalculatorTab />
             </TabsContent>
-            <TabsContent key="promotions" value="promotions">
-              <PromotionsTab />
-            </TabsContent>
           </AnimatePresence>
         </Tabs>
       </main>
@@ -210,12 +281,8 @@ export default function AdminDashboard() {
 // --- Tab Implementations ---
 
 function OverviewTab() {
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<{data: string, Faturamento: number, Despesas: number}[]>([]);
   const [stats, setStats] = useState({ income: 0, expenses: 0, balance: 0 });
-
-  useEffect(() => {
-    fetchFinancialData();
-  }, []);
 
   const fetchFinancialData = async () => {
     const { data: records, error } = await supabase
@@ -232,11 +299,11 @@ function OverviewTab() {
     }
 
     // Process data for chart (grouped by date)
-    const chartData: any = {};
+    const chartData: Record<string, { data: string, Faturamento: number, Despesas: number }> = {};
     let totalIncome = 0;
     let totalExpenses = 0;
 
-    records.forEach(record => {
+    (records as FinancialRecord[]).forEach(record => {
       const date = format(new Date(record.created_at), 'dd/MM');
       if (!chartData[date]) chartData[date] = { data: date, Faturamento: 0, Despesas: 0 };
       
@@ -256,6 +323,10 @@ function OverviewTab() {
       balance: Number((totalIncome - totalExpenses).toFixed(2))
     });
   };
+
+  useEffect(() => {
+    fetchFinancialData();
+  }, []);
 
   return (
     <motion.div 
@@ -304,7 +375,7 @@ function OverviewTab() {
               <Tooltip 
                 cursor={{ fill: '#f4f4f5' }}
                 contentStyle={{ border: '1px solid #e4e4e7', borderRadius: '0', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase' }}
-                formatter={(value: any) => [`R$ ${value}`, '']}
+                formatter={(value: number, name: string) => [`R$ ${value.toFixed(2)}`, name]}
               />
               <Bar dataKey="Faturamento" fill="#000" radius={[2, 2, 0, 0]} barSize={40} />
               <Bar dataKey="Despesas" fill="#ef4444" radius={[2, 2, 0, 0]} barSize={40} />
@@ -317,33 +388,43 @@ function OverviewTab() {
 }
 
 function BookingsTab() {
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [flashes, setFlashes] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [flashes, setFlashes] = useState<Flash[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   
+  // Calendar Event States
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [eventData, setEventData] = useState({
+    id: "",
+    type: "block" as "block" | "promotion",
+    title: "",
+    discount_percentage: "",
+    end_date: undefined as Date | undefined
+  });
+
   // Modal States
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   
   // Form States for Modals
   const [agreedPrice, setAgreedPrice] = useState("");
   const [sinalAmount, setSinalAmount] = useState("");
-  const [newDate, setNewDate] = useState("");
+  const [newDate, setNewDate] = useState<Date | undefined>(new Date());
+  const [newSessions, setNewSessions] = useState<string[]>([]);
 
   // Completion Form States
   const [sessionHours, setSessionHours] = useState("1");
   const [usedCartridges, setUsedCartridges] = useState<{id: string, qty: number}[]>([]);
   const [finalChargedPrice, setFinalChargedPrice] = useState("");
-  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetchBookings();
-    fetchInventoryForModals();
-    fetchFlashes();
-  }, []);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
   const fetchBookings = async () => {
     const { data, error } = await supabase
@@ -356,14 +437,65 @@ function BookingsTab() {
     setLoading(false);
   };
 
+  const fetchCalendarEvents = async () => {
+    const { data } = await supabase.from('calendar_events').select('*');
+    if (data) setCalendarEvents(data);
+  };
+
   const fetchFlashes = async () => {
     const { data } = await supabase.from('flashes').select('id, title');
-    if (data) setFlashes(data);
+    if (data) setFlashes(data as unknown as Flash[]);
   };
 
   const fetchInventoryForModals = async () => {
     const { data } = await supabase.from('inventory').select('*');
     if (data) setInventoryItems(data);
+  };
+
+  useEffect(() => {
+    fetchBookings();
+    fetchInventoryForModals();
+    fetchFlashes();
+    fetchCalendarEvents();
+  }, []);
+
+  const handleSaveEvent = async () => {
+    if (!selectedDate) return;
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    
+    const payload = {
+      date: dateStr,
+      end_date: eventData.end_date ? format(eventData.end_date, 'yyyy-MM-dd') : dateStr,
+      type: eventData.type,
+      title: eventData.title,
+      discount_percentage: eventData.type === 'promotion' ? Number(eventData.discount_percentage) : null
+    };
+
+    let error;
+    if (eventData.id) {
+      const { error: err } = await supabase.from('calendar_events').update(payload).eq('id', eventData.id);
+      error = err;
+    } else {
+      const { error: err } = await supabase.from('calendar_events').insert([payload]);
+      error = err;
+    }
+
+    if (error) toast.error("Erro ao salvar evento.");
+    else {
+      toast.success("Evento salvo!");
+      setIsEventModalOpen(false);
+      fetchCalendarEvents();
+    }
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    if (!confirm("Excluir este evento?")) return;
+    const { error } = await supabase.from('calendar_events').delete().eq('id', id);
+    if (error) toast.error("Erro ao excluir.");
+    else {
+      toast.success("Evento removido.");
+      fetchCalendarEvents();
+    }
   };
 
   const calculateSetupCost = () => {
@@ -421,7 +553,8 @@ function BookingsTab() {
         type: 'income',
         amount: selectedBooking.sinal_amount,
         description: `Sinal retido (Cancelamento): ${selectedBooking.nome} - Ref: ${selectedBooking.id}`,
-        category: 'booking_studio_cut'
+        category: 'booking_studio_cut',
+        created_at: `${selectedBooking.sessao_data}T12:00:00Z`
       });
     }
 
@@ -440,16 +573,27 @@ function BookingsTab() {
   };
 
   const handleReschedule = async () => {
-    if (!newDate) return;
+    if (!selectedBooking || !newDate || newSessions.length === 0) {
+      toast.error("Selecione a data e pelo menos uma sessão.");
+      return;
+    }
+    
+    const dateStr = format(newDate, 'yyyy-MM-dd');
+    const sessionsStr = newSessions.join(", ");
+
     const { error } = await supabase
       .from('bookings')
-      .update({ sessao_data: newDate })
+      .update({ 
+        sessao_data: dateStr, 
+        sessao_periodo: sessionsStr
+      })
       .eq('id', selectedBooking.id);
 
     if (error) {
-      toast.error("Erro ao remarcar.");
+      console.error("Supabase Error details:", error);
+      toast.error("Erro ao remarcar: " + error.message);
     } else {
-      toast.success("Data atualizada.");
+      toast.success("Agendamento atualizado!");
       setIsRescheduleModalOpen(false);
       fetchBookings();
     }
@@ -480,7 +624,8 @@ function BookingsTab() {
       type: 'income',
       amount: studioCut,
       description: `Booking concluído: ${selectedBooking.nome} (Total: R$ ${total}) - Ref: ${selectedBooking.id}`,
-      category: 'booking_studio_cut'
+      category: 'booking_studio_cut',
+      created_at: `${selectedBooking.sessao_data}T12:00:00Z`
     });
 
     // 3. Update status
@@ -495,7 +640,7 @@ function BookingsTab() {
     }
   };
 
-  const handleCompleteBooking = (b: any) => {
+  const handleCompleteBooking = (b: Booking) => {
     setSelectedBooking(b);
     setFinalChargedPrice(String(b.agreed_price || ""));
     setSessionHours("1");
@@ -503,7 +648,7 @@ function BookingsTab() {
     setIsCompleteModalOpen(true);
   };
 
-  const deleteBooking = async (b: any) => {
+  const deleteBooking = async (b: Booking) => {
     if (!confirm("Tem certeza que deseja excluir permanentemente este registro e seu histórico financeiro?")) return;
     
     // Delete associated financial records
@@ -537,10 +682,41 @@ function BookingsTab() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="bg-white border border-border overflow-hidden"
+      className="space-y-6"
     >
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="flex justify-between items-center bg-white border border-border p-2">
+        <div className="flex gap-1">
+          <button 
+            onClick={() => setViewMode("list")}
+            className={cn(
+              "px-4 py-2 text-[10px] uppercase font-bold tracking-widest transition-colors",
+              viewMode === "list" ? "bg-black text-white" : "bg-transparent text-zinc-400 hover:bg-zinc-50"
+            )}
+          >
+            Lista
+          </button>
+          <button 
+            onClick={() => setViewMode("calendar")}
+            className={cn(
+              "px-4 py-2 text-[10px] uppercase font-bold tracking-widest transition-colors",
+              viewMode === "calendar" ? "bg-black text-white" : "bg-transparent text-zinc-400 hover:bg-zinc-50"
+            )}
+          >
+            Calendário
+          </button>
+        </div>
+        
+        {viewMode === "calendar" && (
+          <p className="text-[10px] uppercase font-mono text-muted-foreground mr-4 hidden md:block">
+            Clique em um dia para ver detalhes ou gerenciar folgas/promoções.
+          </p>
+        )}
+      </div>
+
+      {viewMode === "list" ? (
+        <div className="bg-white border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-zinc-50 border-b border-border">
               <th className="p-4 text-[10px] uppercase tracking-widest font-mono font-bold">Data/Hora</th>
@@ -586,22 +762,30 @@ function BookingsTab() {
                       </div>
                     ) : (
                       <>
-                        {b.referencia_imagem_url ? (
-                          <a 
-                            href={b.referencia_imagem_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="w-12 h-12 border border-border overflow-hidden hover:border-black transition-colors block"
-                          >
-                            <img 
-                              src={b.referencia_imagem_url} 
-                              alt="Referência" 
-                              className="w-full h-full object-cover"
-                            />
-                          </a>
-                        ) : (
-                          <span className="text-[9px] uppercase font-mono text-muted-foreground">Sem ref</span>
-                        )}
+                        <div className="grid grid-cols-2 gap-1">
+                          {(() => {
+                            try {
+                              const urls = JSON.parse(b.referencia_imagem_url);
+                              if (Array.isArray(urls)) {
+                                return urls.map((url, i) => (
+                                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="w-10 h-10 border border-border overflow-hidden hover:border-black transition-colors">
+                                    <img src={url} alt="Ref" className="w-full h-full object-cover" />
+                                  </a>
+                                ));
+                              }
+                            } catch (e) {}
+
+                            // Fallback for single image string
+                            if (b.referencia_imagem_url) {
+                              return (
+                                <a href={b.referencia_imagem_url} target="_blank" rel="noopener noreferrer" className="w-10 h-10 border border-border overflow-hidden hover:border-black transition-colors">
+                                  <img src={b.referencia_imagem_url} alt="Ref" className="w-full h-full object-cover" />
+                                </a>
+                              );
+                            }
+                            return <span className="text-[9px] uppercase font-mono text-muted-foreground col-span-2">Sem ref</span>;
+                          })()}
+                        </div>
                         {b.ideia && (
                           <p className="text-[10px] leading-tight text-zinc-600 line-clamp-2" title={b.ideia}>
                             {b.ideia}
@@ -653,6 +837,8 @@ function BookingsTab() {
                         <button 
                           onClick={() => {
                             setSelectedBooking(b);
+                            setNewDate(b.sessao_data ? new Date(b.sessao_data + 'T12:00:00') : new Date());
+                            setNewSessions(b.sessao_periodo ? b.sessao_periodo.split(", ") : []);
                             setIsRescheduleModalOpen(true);
                           }} 
                           className="p-1.5 hover:bg-zinc-100 text-zinc-600 rounded-full" 
@@ -680,8 +866,389 @@ function BookingsTab() {
           </tbody>
         </table>
       </div>
+    </div>
+      ) : (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 bg-white border border-border p-8 flex justify-center">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            locale={ptBR}
+            className="w-full h-full scale-110"
+            modifiers={{
+              fullSession: (date) => {
+                const d = format(date, 'yyyy-MM-dd');
+                if (selectedDate && format(selectedDate, 'yyyy-MM-dd') === d) return false;
+                
+                const dayBookings = bookings.filter(b => b.sessao_data === d && ['confirmado', 'remarcado'].includes(b.status));
+                const day = date.getDay();
+                const periods = dayBookings.flatMap(b => b.sessao_periodo.split(", "));
+                
+                if (periods.includes("Manhã") && periods.includes("Noite")) return true;
+                if (day >= 1 && day <= 5) return periods.includes("Noite");
+                return false;
+              },
+              morningSession: (date) => {
+                const d = format(date, 'yyyy-MM-dd');
+                if (selectedDate && format(selectedDate, 'yyyy-MM-dd') === d) return false;
+                
+                const dayBookings = bookings.filter(b => b.sessao_data === d && ['confirmado', 'remarcado'].includes(b.status));
+                const periods = dayBookings.flatMap(b => b.sessao_periodo.split(", "));
+                return date.getDay() === 6 && periods.includes("Manhã") && !periods.includes("Noite");
+              },
+              nightSession: (date) => {
+                const d = format(date, 'yyyy-MM-dd');
+                if (selectedDate && format(selectedDate, 'yyyy-MM-dd') === d) return false;
+                
+                const dayBookings = bookings.filter(b => b.sessao_data === d && ['confirmado', 'remarcado'].includes(b.status));
+                const periods = dayBookings.flatMap(b => b.sessao_periodo.split(", "));
+                return date.getDay() === 6 && periods.includes("Noite") && !periods.includes("Manhã");
+              },
+              isBlock: (date) => {
+                const d = format(date, 'yyyy-MM-dd');
+                if (selectedDate && format(selectedDate, 'yyyy-MM-dd') === d) return false;
+                return calendarEvents.some(e => e.type === 'block' && d >= e.date && d <= (e.end_date || e.date));
+              },
+              isPromo: (date) => {
+                const d = format(date, 'yyyy-MM-dd');
+                if (selectedDate && format(selectedDate, 'yyyy-MM-dd') === d) return false;
+                return calendarEvents.some(e => e.type === 'promotion' && d >= e.date && d <= (e.end_date || e.date));
+              },
+            }}
+            modifiersStyles={{
+              fullSession: { 
+                border: '2px solid #ef4444', 
+                backgroundColor: '#fee2e2',
+                color: '#b91c1c',
+                borderRadius: '8px'
+              },
+              morningSession: {
+                borderLeft: '4px solid #ef4444',
+                backgroundColor: '#fff1f2',
+                borderRadius: '8px'
+              },
+              nightSession: {
+                borderRight: '4px solid #ef4444',
+                backgroundColor: '#fff1f2',
+                borderRadius: '8px'
+              },
+              isBlock: { backgroundColor: '#f4f4f5', color: '#71717a', borderRadius: '8px', opacity: 0.5 },
+              isPromo: { backgroundColor: '#d1fae5', color: '#10b981', borderRadius: '8px' },
+            }}
+          />
+        </div>
 
-      {/* --- Modals --- */}
+        <div className="space-y-6">
+          <div className="bg-white border border-border p-6 space-y-4">
+            <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">
+              Dia {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : ''}
+            </h3>
+
+            {/* Day Actions */}
+            <div className="flex gap-2">
+              <Button 
+                size="sm" variant="outline" className="flex-1 rounded-none text-[9px] uppercase"
+                onClick={() => {
+                  setEventData({ id: "", type: "block", title: "Folga / Fechado", discount_percentage: "" });
+                  setIsEventModalOpen(true);
+                }}
+              >
+                Bloquear Dia
+              </Button>
+              <Button 
+                size="sm" variant="outline" className="flex-1 rounded-none text-[9px] uppercase"
+                onClick={() => {
+                  setEventData({ id: "", type: "promotion", title: "", discount_percentage: "10" });
+                  setIsEventModalOpen(true);
+                }}
+              >
+                Add Promoção
+              </Button>
+            </div>
+
+            {/* Day Content */}
+            <div className="space-y-4 pt-4">
+              {/* Events */}
+              {calendarEvents.filter(e => e.date === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '')).map(e => (
+                <div key={e.id} className={cn(
+                  "p-3 border flex justify-between items-center",
+                  e.type === 'block' ? "bg-red-50 border-red-100" : "bg-green-50 border-green-100"
+                )}>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase">{e.title || (e.type === 'block' ? 'Bloqueado' : 'Promoção')}</p>
+                    {e.discount_percentage && <p className="text-[9px] font-mono">{e.discount_percentage}% OFF</p>}
+                  </div>
+                  <button onClick={() => handleDeleteEvent(e.id)} className="text-zinc-400 hover:text-red-500">
+                    <Trash size={14} />
+                  </button>
+                </div>
+              ))}
+
+              {/* Bookings for the day */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] uppercase font-mono text-muted-foreground border-b pb-2">Agendamentos</h4>
+                {bookings.filter(b => b.sessao_data === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '')).map(b => (
+                  <div key={b.id} className="border border-border p-4 space-y-3 hover:border-black transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-[11px] font-bold">{b.nome}</p>
+                        <p className="text-[9px] uppercase font-mono text-muted-foreground">{b.sessao_periodo}</p>
+                      </div>
+                      <span className={cn(
+                        "text-[8px] uppercase font-bold px-1.5 py-0.5",
+                        b.status === 'confirmado' ? "bg-blue-100 text-blue-700" : "bg-zinc-100"
+                      )}>{b.status}</span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1">
+                      {(() => {
+                        try {
+                          const urls = JSON.parse(b.referencia_imagem_url);
+                          if (Array.isArray(urls)) {
+                            return urls.map((url, i) => (
+                              <img key={i} src={url} className="w-full aspect-square object-cover border border-border" alt="Ref" />
+                            ));
+                          }
+                        } catch(e) {}
+                        if (b.referencia_imagem_url) return <img src={b.referencia_imagem_url} className="w-full aspect-square object-cover border border-border" alt="Ref" />;
+                        return null;
+                      })()}
+                    </div>
+
+                    <div className="pt-2 flex gap-2">
+                      <Button 
+                        asChild size="sm" className="flex-1 rounded-none text-[9px] uppercase h-8 bg-green-600 hover:bg-green-700"
+                      >
+                        <a href={`https://wa.me/${b.whatsapp.replace(/\D/g, '')}`} target="_blank">WhatsApp</a>
+                      </Button>
+                      <Button 
+                        size="sm" variant="outline" className="rounded-none text-[9px] uppercase h-8"
+                        onClick={() => {
+                          setSelectedBooking(b);
+                          setIsDetailsModalOpen(true);
+                        }}
+                      >
+                        Ver Tudo
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {bookings.filter(b => b.sessao_data === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '')).length === 0 && (
+                  <p className="text-[10px] uppercase font-mono text-zinc-400 text-center py-4 italic">Nenhum agendamento para este dia.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* Booking Details Modal */}
+      <AnimatePresence>
+        {isDetailsModalOpen && selectedBooking && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4 overflow-y-auto backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+              className="bg-white max-w-2xl w-full relative shadow-2xl"
+            >
+              <button 
+                onClick={() => setIsDetailsModalOpen(false)}
+                className="absolute top-4 right-4 p-2 hover:bg-zinc-100 transition-colors z-10"
+              >
+                <XCircle size={24} />
+              </button>
+
+              <div className="p-8 space-y-8">
+                <div>
+                  <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">Detalhes do Agendamento</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pt-6">
+                    <div>
+                      <p className="text-[10px] uppercase font-mono text-muted-foreground">Cliente</p>
+                      <p className="text-sm font-bold">{selectedBooking.nome}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-mono text-muted-foreground">Idade</p>
+                      <p className="text-sm font-bold">{selectedBooking.idade} anos</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-mono text-muted-foreground">Status</p>
+                      <span className={cn(
+                        "text-[9px] uppercase font-bold px-2 py-0.5 inline-block mt-1",
+                        selectedBooking.status === 'confirmado' ? "bg-blue-100 text-blue-700" : "bg-zinc-100 text-zinc-600"
+                      )}>{selectedBooking.status}</span>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-mono text-muted-foreground">Data</p>
+                      <p className="text-sm font-bold">{selectedBooking.sessao_data ? format(new Date(selectedBooking.sessao_data + 'T12:00:00'), 'dd/MM/yyyy') : 'Não definida'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-mono text-muted-foreground">Período</p>
+                      <p className="text-sm font-bold">{selectedBooking.sessao_periodo}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-mono text-muted-foreground">Tipo</p>
+                      <p className="text-sm font-bold">{selectedBooking.tipo_tattoo}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedBooking.ideia && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] uppercase font-mono text-muted-foreground">Ideia / Descrição</p>
+                    <div className="bg-zinc-50 border border-zinc-100 p-4 text-sm leading-relaxed whitespace-pre-wrap italic">
+                      "{selectedBooking.ideia}"
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <p className="text-[10px] uppercase font-mono text-muted-foreground">Referências Visual</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {(() => {
+                      try {
+                        const urls = JSON.parse(selectedBooking.referencia_imagem_url);
+                        if (Array.isArray(urls)) {
+                          return urls.map((url, i) => (
+                            <div 
+                              key={i} 
+                              onClick={() => setZoomedImage(url)}
+                              className="aspect-square border border-border overflow-hidden cursor-zoom-in hover:border-black transition-all group"
+                            >
+                              <img src={url} alt="Ref" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                            </div>
+                          ));
+                        }
+                      } catch(e) {}
+                      if (selectedBooking.referencia_imagem_url) {
+                        return (
+                          <div 
+                            onClick={() => setZoomedImage(selectedBooking.referencia_imagem_url)}
+                            className="aspect-square border border-border overflow-hidden cursor-zoom-in hover:border-black transition-all group"
+                          >
+                            <img src={selectedBooking.referencia_imagem_url} alt="Ref" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                          </div>
+                        );
+                      }
+                      return <p className="text-[10px] uppercase font-mono text-zinc-400 italic">Nenhuma imagem enviada.</p>;
+                    })()}
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t flex gap-4">
+                  <Button 
+                    asChild className="flex-1 rounded-none text-[10px] uppercase font-bold bg-green-600 hover:bg-green-700"
+                  >
+                    <a href={`https://wa.me/${selectedBooking.whatsapp.replace(/\D/g, '')}`} target="_blank">Chat no WhatsApp</a>
+                  </Button>
+                  <Button 
+                    variant="outline" className="flex-1 rounded-none text-[10px] uppercase font-bold"
+                    onClick={() => setIsDetailsModalOpen(false)}
+                  >
+                    Fechar Detalhes
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Lightbox / Zoomed Image */}
+      <AnimatePresence>
+        {zoomedImage && (
+          <div 
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 p-4 md:p-12"
+            onClick={() => setZoomedImage(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-5xl w-full h-full flex items-center justify-center"
+            >
+              <img src={zoomedImage} className="max-w-full max-h-full object-contain shadow-2xl" alt="Zoomed" />
+              <button 
+                onClick={() => setZoomedImage(null)}
+                className="absolute top-0 right-0 m-4 text-white p-2 hover:bg-white/10 rounded-full"
+              >
+                <XCircle size={32} />
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Event Management Modal */}
+      <AnimatePresence>
+      {isEventModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 max-w-2xl w-full space-y-6">
+            <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">Gerenciar Dia</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Tipo de Evento</Label>
+                  <select 
+                    value={eventData.type} 
+                    onChange={e => setEventData(p => ({ ...p, type: e.target.value as 'block' | 'promotion' }))}
+                    className="w-full border p-3 text-sm outline-none bg-white"
+                  >
+                    <option value="block">Bloquear Dia (Folga)</option>
+                    <option value="promotion">Promoção</option>
+                  </select>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-mono">Data de Início</Label>
+                    <div className="border border-border flex justify-center p-2 bg-zinc-50 grayscale opacity-70 cursor-not-allowed">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        locale={ptBR}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-mono">Data de Fim (Opcional)</Label>
+                    <div className="border border-border flex justify-center p-2 bg-white">
+                      <Calendar
+                        mode="single"
+                        selected={eventData.end_date}
+                        onSelect={d => setEventData(p => ({ ...p, end_date: d }))}
+                        locale={ptBR}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Título / Motivo</Label>
+                  <input 
+                    value={eventData.title} 
+                    onChange={e => setEventData(p => ({ ...p, title: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none" 
+                    placeholder="Ex: Feriado / Flash Day"
+                  />
+                </div>
+              {eventData.type === 'promotion' && (
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Desconto (%)</Label>
+                  <input 
+                    type="number"
+                    value={eventData.discount_percentage} 
+                    onChange={e => setEventData(p => ({ ...p, discount_percentage: e.target.value }))}
+                    className="w-full border p-3 text-sm outline-none" 
+                  />
+                </div>
+              )}
+              <div className="pt-4 flex gap-3">
+                <Button variant="outline" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsEventModalOpen(false)}>Cancelar</Button>
+                <Button className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={handleSaveEvent}>Salvar</Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      </AnimatePresence>
       
       {/* Confirm Modal */}
       <AnimatePresence>
@@ -714,20 +1281,52 @@ function BookingsTab() {
       {/* Reschedule Modal */}
       <AnimatePresence>
         {isRescheduleModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-            <motion.div 
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white p-8 max-w-sm w-full space-y-6"
+              className="bg-white p-8 max-w-md w-full space-y-6 my-8"
             >
-              <h3 className="text-xs font-bbh uppercase tracking-widest">Remarcar Sessão</h3>
-              <div className="space-y-4">
+              <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">Remarcar Sessão</h3>
+              <div className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-[10px] uppercase tracking-widest font-mono">Nova Data</Label>
-                  <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="w-full border p-3 text-sm outline-none" />
+                  <div className="border border-border flex justify-center p-2 bg-zinc-50">
+                    <Calendar
+                      mode="single"
+                      selected={newDate}
+                      onSelect={setNewDate}
+                      locale={ptBR}
+                    />
+                  </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-widest font-mono">Sessões</Label>
+                  <div className="flex gap-2">
+                    {["Manhã", "Noite"].map(s => (
+                      <button
+                        key={s}
+                        onClick={() => {
+                          setNewSessions(prev => 
+                            prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]
+                          );
+                        }}
+                        className={cn(
+                          "flex-1 py-3 text-[10px] uppercase font-bold tracking-widest border transition-all",
+                          newSessions.includes(s) 
+                            ? "bg-black text-white border-black" 
+                            : "bg-white text-zinc-400 border-border hover:border-zinc-300"
+                        )}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="pt-4 flex gap-3">
                   <Button variant="outline" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsRescheduleModalOpen(false)}>Sair</Button>
-                  <Button className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={handleReschedule}>Atualizar</Button>
+                  <Button className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={handleReschedule}>Confirmar Mudança</Button>
                 </div>
               </div>
             </motion.div>
@@ -890,14 +1489,14 @@ function BookingsTab() {
 }
 
 function InventoryTab() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Modal State
   const [isNewItemModalOpen, setIsNewItemModalOpen] = useState(false);
   const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
   const [isConsumeModalOpen, setIsConsumeModalOpen] = useState(false);
-  
+
   const [newItemData, setNewItemData] = useState({
     item_name: "",
     category: "Agulhas/Cartuchos",
@@ -906,8 +1505,8 @@ function InventoryTab() {
     unit: "un",
     purchase_price: "0" // Helper for calculation
   });
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [consumingItem, setConsumingItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [consumingItem, setConsumingItem] = useState<InventoryItem | null>(null);
   const [consumeAmount, setConsumeAmount] = useState("");
 
   const categories = [
@@ -918,10 +1517,6 @@ function InventoryTab() {
     "Limpeza/Sabões",
     "Outros"
   ];
-
-  useEffect(() => {
-    fetchInventory();
-  }, []);
 
   const fetchInventory = async () => {
     const { data, error } = await supabase.from('inventory').select('*').order('item_name', { ascending: true });
@@ -934,6 +1529,10 @@ function InventoryTab() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
   const handleCreateItem = async () => {
     if (!newItemData.item_name) {
@@ -1009,7 +1608,7 @@ function InventoryTab() {
     }
   };
 
-  const addStock = async (id: string, currentQty: number, item: any) => {
+  const addStock = async (id: string, currentQty: number, item: InventoryItem) => {
     const qtyInput = window.prompt(`Quantidade comprada (${item.unit}):`);
     if (!qtyInput) return;
     
@@ -1044,16 +1643,18 @@ function InventoryTab() {
     fetchInventory();
   };
 
-  const handleConsume = async (amount: number) => {
-    if (!consumingItem || consumingItem.quantity < amount) {
+  const handleConsume = async (amount: number, overrideItem?: InventoryItem) => {
+    const targetItem = overrideItem || consumingItem;
+    
+    if (!targetItem || targetItem.quantity < amount) {
       toast.error("Quantidade insuficiente no estoque.");
       return;
     }
     
     const { error } = await supabase
       .from('inventory')
-      .update({ quantity: Number((consumingItem.quantity - amount).toFixed(2)) })
-      .eq('id', consumingItem.id);
+      .update({ quantity: Number((targetItem.quantity - amount).toFixed(2)) })
+      .eq('id', targetItem.id);
 
     if (error) {
       toast.error("Erro ao atualizar.");
@@ -1127,7 +1728,7 @@ function InventoryTab() {
                     onClick={() => {
                       if (item.unit === 'un' || !item.unit) {
                         setConsumingItem(item);
-                        handleConsume(1);
+                        handleConsume(1, item);
                       } else {
                         setConsumingItem(item);
                         setIsConsumeModalOpen(true);
@@ -1258,7 +1859,7 @@ function InventoryTab() {
                   <Label className="text-[10px] uppercase tracking-widest font-mono">Nome do Item</Label>
                   <input 
                     value={editingItem.item_name} 
-                    onChange={e => setEditingItem((p: any) => ({ ...p, item_name: e.target.value }))}
+                    onChange={e => setEditingItem(p => p ? ({ ...p, item_name: e.target.value }) : null)}
                     className="w-full border p-3 text-sm outline-none" 
                   />
                 </div>
@@ -1266,7 +1867,7 @@ function InventoryTab() {
                   <Label className="text-[10px] uppercase tracking-widest font-mono">Categoria</Label>
                   <select 
                     value={editingItem.category}
-                    onChange={e => setEditingItem((p: any) => ({ ...p, category: e.target.value }))}
+                    onChange={e => setEditingItem(p => p ? ({ ...p, category: e.target.value }) : null)}
                     className="w-full border p-3 text-sm outline-none bg-white"
                   >
                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1276,7 +1877,7 @@ function InventoryTab() {
                   <Label className="text-[10px] uppercase tracking-widest font-mono">Unidade de Medida</Label>
                   <select 
                     value={editingItem.unit}
-                    onChange={e => setEditingItem((p: any) => ({ ...p, unit: e.target.value }))}
+                    onChange={e => setEditingItem(p => p ? ({ ...p, unit: e.target.value }) : null)}
                     className="w-full border p-3 text-sm outline-none bg-white"
                   >
                     <option value="un">Unidade (un)</option>
@@ -1289,7 +1890,7 @@ function InventoryTab() {
                   <input 
                     type="number" 
                     value={editingItem.min_quantity} 
-                    onChange={e => setEditingItem((p: any) => ({ ...p, min_quantity: e.target.value }))}
+                    onChange={e => setEditingItem(p => p ? ({ ...p, min_quantity: Number(e.target.value) }) : null)}
                     className="w-full border p-3 text-sm outline-none" 
                   />
                 </div>
@@ -1298,7 +1899,7 @@ function InventoryTab() {
                   <input 
                     type="number" 
                     value={editingItem.cost_per_unit} 
-                    onChange={e => setEditingItem((p: any) => ({ ...p, cost_per_unit: e.target.value }))}
+                    onChange={e => setEditingItem(p => p ? ({ ...p, cost_per_unit: Number(e.target.value) }) : null)}
                     className="w-full border p-3 text-sm outline-none" 
                   />
                 </div>
@@ -1371,17 +1972,17 @@ function InventoryTab() {
 function CalculatorTab() {
   const [hours, setHours] = useState(1);
   const [discount, setDiscount] = useState(0);
-  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [selectedCartridges, setSelectedCartridges] = useState<{id: string, qty: number}[]>([]);
-
-  useEffect(() => {
-    fetchInventory();
-  }, []);
 
   const fetchInventory = async () => {
     const { data } = await supabase.from('inventory').select('*');
     if (data) setInventoryItems(data);
   };
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
   const calculateSetupCost = () => {
     if (inventoryItems.length === 0) return 40;
@@ -1538,14 +2139,14 @@ function CalculatorTab() {
 }
 
 function FlashesTab() {
-  const [flashes, setFlashes] = useState<any[]>([]);
+  const [flashes, setFlashes] = useState<Flash[]>([]);
   const [loading, setLoading] = useState(true);
   const [isNewFlashModalOpen, setIsNewFlashModalOpen] = useState(false);
   const [isEditFlashModalOpen, setIsEditFlashModalOpen] = useState(false);
   const [isDoneModalOpen, setIsDoneModalOpen] = useState(false);
   const [isHealedModalOpen, setIsHealedModalOpen] = useState(false);
   
-  const [selectedFlash, setSelectedFlash] = useState<any>(null);
+  const [selectedFlash, setSelectedFlash] = useState<Flash | null>(null);
   const [uploading, setUploading] = useState(false);
 
   // Form states
@@ -1576,16 +2177,16 @@ function FlashesTab() {
     image_healed: null as File | null
   });
 
-  useEffect(() => {
-    fetchFlashes();
-  }, []);
-
   const fetchFlashes = async () => {
-    const { data, error } = await supabase.from('flashes').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('flashes').select('*').order('created_at', { ascending: true });
     if (error) toast.error("Erro ao carregar flashes.");
     else setFlashes(data || []);
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchFlashes();
+  }, []);
 
   const uploadImage = async (file: File, bucket: string = 'references') => {
     const fileExt = file.name.split('.').pop();
@@ -1618,8 +2219,8 @@ function FlashesTab() {
       setIsNewFlashModalOpen(false);
       setNewFlashData({ title: "", style: "Blackwork", size: "", value: "", recommended_body_part: "", image: null });
       fetchFlashes();
-    } catch (e: any) {
-      toast.error("Erro: " + e.message);
+    } catch (e: unknown) {
+      toast.error("Erro: " + (e as Error).message);
     } finally {
       setUploading(false);
     }
@@ -1644,8 +2245,8 @@ function FlashesTab() {
       toast.success("Informações atualizadas!");
       setIsEditFlashModalOpen(false);
       fetchFlashes();
-    } catch (e: any) {
-      toast.error("Erro: " + e.message);
+    } catch (e: unknown) {
+      toast.error("Erro: " + (e as Error).message);
     } finally {
       setUploading(false);
     }
@@ -1671,8 +2272,8 @@ function FlashesTab() {
       toast.success("Tattoo marcada como feita!");
       setIsDoneModalOpen(false);
       fetchFlashes();
-    } catch (e: any) {
-      toast.error("Erro: " + e.message);
+    } catch (e: unknown) {
+      toast.error("Erro: " + (e as Error).message);
     } finally {
       setUploading(false);
     }
@@ -1694,8 +2295,8 @@ function FlashesTab() {
       toast.success("Foto cicatrizada adicionada!");
       setIsHealedModalOpen(false);
       fetchFlashes();
-    } catch (e: any) {
-      toast.error("Erro: " + e.message);
+    } catch (e: unknown) {
+      toast.error("Erro: " + (e as Error).message);
     } finally {
       setUploading(false);
     }
@@ -1930,222 +2531,4 @@ function FlashesTab() {
   );
 }
 
-function PromotionsTab() {
-  const [promotions, setPromotions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState({
-    id: "",
-    title: "",
-    description: "",
-    discount_percentage: "0",
-    active: false
-  });
-
-  useEffect(() => {
-    fetchPromotions();
-  }, []);
-
-  const fetchPromotions = async () => {
-    const { data, error } = await supabase
-      .from('promotions')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      if (error.code !== '42P01') {
-        toast.error("Erro ao carregar promoções.");
-      }
-    } else {
-      setPromotions(data || []);
-    }
-    setLoading(false);
-  };
-
-  const handleToggleActive = async (id: string, currentStatus: boolean) => {
-    if (!currentStatus) {
-      await supabase.from('promotions').update({ active: false }).neq('id', id);
-    }
-
-    const { error } = await supabase
-      .from('promotions')
-      .update({ active: !currentStatus })
-      .eq('id', id);
-
-    if (error) toast.error("Erro ao atualizar status.");
-    else {
-      toast.success("Status atualizado!");
-      fetchPromotions();
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    const payload = {
-      title: formData.title,
-      description: formData.description,
-      discount_percentage: Number(formData.discount_percentage),
-      active: formData.active
-    };
-
-    let error;
-    if (formData.id) {
-      const { error: err } = await supabase.from('promotions').update(payload).eq('id', formData.id);
-      error = err;
-    } else {
-      const { error: err } = await supabase.from('promotions').insert([payload]);
-      error = err;
-    }
-
-    if (error) toast.error("Erro ao salvar promoção.");
-    else {
-      toast.success("Promoção salva!");
-      setIsModalOpen(false);
-      setFormData({ id: "", title: "", description: "", discount_percentage: "0", active: false });
-      fetchPromotions();
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Excluir esta promoção?")) return;
-    const { error } = await supabase.from('promotions').delete().eq('id', id);
-    if (error) toast.error("Erro ao excluir.");
-    else {
-      toast.success("Excluída.");
-      fetchPromotions();
-    }
-  };
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-      className="space-y-6"
-    >
-      <div className="flex justify-between items-center">
-        <h3 className="text-xs font-bbh uppercase tracking-widest">Promocoes Globais</h3>
-        <Button 
-          size="sm" 
-          className="rounded-none text-[10px] uppercase font-bold tracking-widest"
-          onClick={() => {
-            setFormData({ id: "", title: "", description: "", discount_percentage: "0", active: false });
-            setIsModalOpen(true);
-          }}
-        >
-          <Plus size={16} className="mr-2" /> Nova Promoção
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {promotions.map(p => (
-          <div key={p.id} className={cn(
-            "bg-white border p-6 space-y-4 relative group transition-all",
-            p.active ? "border-black ring-1 ring-black shadow-lg" : "border-border opacity-70"
-          )}>
-            <div className="flex justify-between items-start">
-              <div>
-                <h4 className="text-sm font-bbh uppercase tracking-widest">{p.title}</h4>
-                <p className="text-[10px] text-muted-foreground uppercase font-mono mt-1">{p.discount_percentage}% OFF</p>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <span className={cn(
-                  "text-[8px] uppercase font-bold px-2 py-1",
-                  p.active ? "bg-black text-white" : "bg-zinc-100 text-zinc-400"
-                )}>
-                  {p.active ? "Ativa" : "Inativa"}
-                </span>
-              </div>
-            </div>
-            
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {p.description}
-            </p>
-
-            <div className="pt-4 border-t flex justify-between items-center">
-              <button 
-                onClick={() => handleToggleActive(p.id, p.active)}
-                className="text-[10px] font-bold uppercase hover:underline"
-              >
-                {p.active ? "Desativar" : "Ativar no Site"}
-              </button>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => {
-                    setFormData({
-                      id: p.id,
-                      title: p.title,
-                      description: p.description,
-                      discount_percentage: String(p.discount_percentage),
-                      active: p.active
-                    });
-                    setIsModalOpen(true);
-                  }}
-                  className="p-1.5 hover:bg-zinc-100 rounded text-zinc-400 hover:text-black"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button onClick={() => handleDelete(p.id)} className="p-1.5 hover:bg-red-50 rounded text-zinc-400 hover:text-red-500">
-                  <Trash size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Promotion Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 max-w-md w-full space-y-6">
-              <h3 className="text-xs font-bbh uppercase tracking-widest border-b pb-4">
-                {formData.id ? "Editar Promoção" : "Nova Promoção"}
-              </h3>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] uppercase tracking-widest font-mono">Título do Evento</Label>
-                  <input 
-                    value={formData.title} 
-                    onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
-                    className="w-full border p-3 text-sm outline-none" 
-                    placeholder="Ex: Dia das Mães" 
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] uppercase tracking-widest font-mono">Descrição / Texto do Banner</Label>
-                  <textarea 
-                    value={formData.description} 
-                    onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
-                    className="w-full border p-3 text-sm outline-none resize-none" 
-                    rows={3}
-                    placeholder="Ex: Todas as artes selecionadas com 20% de desconto!" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] uppercase tracking-widest font-mono">Desconto (%)</Label>
-                  <input 
-                    type="number"
-                    value={formData.discount_percentage} 
-                    onChange={e => setFormData(p => ({ ...p, discount_percentage: e.target.value }))}
-                    className="w-full border p-3 text-sm outline-none" 
-                  />
-                </div>
-                <div className="pt-4 flex gap-3">
-                  <Button variant="outline" type="button" className="flex-1 rounded-none text-[10px] uppercase font-bold" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" className="flex-1 rounded-none text-[10px] uppercase font-bold" disabled={isSubmitting}>
-                    {isSubmitting ? "Salvando..." : "Salvar"}
-                  </Button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
