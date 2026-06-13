@@ -139,7 +139,10 @@ export default function BookingFunnel({ isOpen, onClose }: BookingFunnelProps) {
       if (b.sessao_data && b.sessao_periodo) {
         const rawDate = b.sessao_data.split('T')[0]; // Ensure it's just YYYY-MM-DD
         if (!datesMap[rawDate]) datesMap[rawDate] = [];
-        datesMap[rawDate].push(b.sessao_periodo as "Manhã" | "Noite");
+        
+        // Split comma-separated periods (e.g., "Manhã, Noite") if saved as a single string
+        const periods = b.sessao_periodo.split(',').map(s => s.trim());
+        datesMap[rawDate].push(...(periods as ("Manhã" | "Noite")[]));
       }
 
       // Robustly parse JSON array from Supabase
